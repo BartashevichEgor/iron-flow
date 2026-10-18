@@ -102,6 +102,27 @@
       }
     ];
 
+    DAYS.forEach(day => day.exercises.push({
+      id: `${day.id}-cardio`,
+      name: 'Финишное кардио',
+      detail: 'Дорожка, эллипс или велотренажёр',
+      sets: 1,
+      min: 8,
+      max: 15,
+      unit: 'мин',
+      load: '8–15 мин',
+      kind: 'cardio',
+      multiplier: 0,
+      cue: 'Разговорный темп, без ударной нагрузки и чрезмерного наклона'
+    }));
+
+    const TECHNIQUE_TYPES = {
+      'mon-1': 'benchPress', 'mon-2': 'pecDeck', 'mon-3': 'smithPress', 'mon-4': 'pushdown', 'mon-5': 'crunch',
+      'tue-1': 'latPulldown', 'tue-2': 'seatedRow', 'tue-3': 'oneArmRow', 'tue-4': 'bicepsCurl', 'tue-5': 'hyperextension',
+      'thu-1': 'legPress', 'thu-2': 'legCurl', 'thu-3': 'legExtension', 'thu-4': 'calfRaise', 'thu-5': 'weightedCrunch',
+      'fri-1': 'shoulderPress', 'fri-2': 'lateralRaise', 'fri-3': 'reverseFly', 'fri-4': 'sidePlank', 'fri-5': 'plank'
+    };
+
     const RPE_OPTIONS = [
       { id: 'easy', label: 'Легко', icon: 'feather' },
       { id: 'optimal', label: 'Оптимально', sub: '1–2 в запасе', icon: 'gauge-high' },
@@ -234,7 +255,71 @@
       );
     }
 
+    function TechniqueScene({ type, phase }) {
+      const end = phase === 'finish';
+      const body = { stroke: '#8dfc63', strokeWidth: 5, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
+      const gear = { stroke: '#3fd6ff', strokeWidth: 4, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
+      const joint = (cx, cy, r = 7) => <circle cx={cx} cy={cy} r={r} fill="#111619" stroke="#8dfc63" strokeWidth="4" />;
+      const dumbbell = (x, y, vertical = false) => vertical
+        ? <g {...gear}><line x1={x} y1={y - 8} x2={x} y2={y + 8}/><line x1={x - 5} y1={y - 8} x2={x + 5} y2={y - 8}/><line x1={x - 5} y1={y + 8} x2={x + 5} y2={y + 8}/></g>
+        : <g {...gear}><line x1={x - 8} y1={y} x2={x + 8} y2={y}/><line x1={x - 8} y1={y - 5} x2={x - 8} y2={y + 5}/><line x1={x + 8} y1={y - 5} x2={x + 8} y2={y + 5}/></g>;
+
+      if (type === 'benchPress') return <g>{/* горизонтальная скамья и жим */}<path d="M25 82H136M42 82V101M120 82V101" {...gear}/>{joint(36,68)}<path d="M44 71L100 72L130 96M101 72L126 92" {...body}/>{end ? <><path d="M62 70L62 34M92 71L92 34" {...body}/>{dumbbell(62,28)}{dumbbell(92,28)}</> : <><path d="M61 70L48 53L62 42M93 71L107 53L94 42" {...body}/>{dumbbell(62,37)}{dumbbell(94,37)}</>}</g>;
+      if (type === 'pecDeck') return <g><path d="M55 34V96H108V34M55 89H108M65 96V108M101 96V108" {...gear}/>{joint(81,35)}<path d="M81 43V81M81 81L66 103M81 81L97 103" {...body}/>{end ? <path d="M81 54L64 62L76 70M81 54L98 62L86 70" {...body}/> : <path d="M81 54L48 53L31 62M81 54L114 53L131 62" {...body}/>}</g>;
+      if (type === 'smithPress') return <g><path d="M24 22V106M138 22V106M25 83H136M42 83V101M120 83V101" {...gear}/>{joint(41,69)}<path d="M49 72L102 72L130 96" {...body}/>{end ? <path d="M65 71L65 38M96 71L96 38M48 32H115" {...body}/> : <path d="M64 71L53 55L68 47M96 71L108 55L94 47M52 42H110" {...body}/>}</g>;
+      if (type === 'pushdown') return <g><path d="M126 15V106M111 16H141M126 18V47" {...gear}/>{joint(71,28)}<path d="M72 36V76M72 76L59 105M72 76L88 105" {...body}/>{end ? <path d="M72 47L91 61L103 91M72 47L82 66L86 94" {...body}/> : <path d="M72 47L92 55L111 49M72 47L87 58L102 51" {...body}/>}<path d="M126 47L108 49" {...gear}/></g>;
+      if (type === 'crunch' || type === 'weightedCrunch') return <g><path d="M18 104H143" {...gear}/>{joint(end ? 64 : 36, end ? 61 : 85)}<path d={end ? 'M70 66L94 87L119 87M94 87L111 104M119 87L136 104' : 'M43 88L91 91L119 87M91 91L111 104M119 87L136 104'} {...body}/>{type === 'weightedCrunch' && <circle cx={end ? 77 : 53} cy={end ? 71 : 80} r="9" fill="#3fd6ff" opacity=".75"/>}<path d={end ? 'M72 72L86 78' : 'M48 84L64 79'} {...body}/></g>;
+      if (type === 'latPulldown') return <g><path d="M28 15H134M81 15V31M55 96H105M61 96V108M99 96V108" {...gear}/>{joint(81,46)}<path d="M81 54V87M81 87L67 108M81 87L95 108" {...body}/>{end ? <path d="M81 61L62 57L48 43M81 61L100 57L114 43M49 38H113" {...body}/> : <path d="M81 58L58 39L46 22M81 58L104 39L116 22M42 18H120" {...body}/>}</g>;
+      if (type === 'seatedRow') return <g><path d="M32 89H91M43 89V106M82 89V106M132 32V100M132 62L112 62" {...gear}/>{joint(59,48)}<path d="M61 56L65 84M65 84L45 103M65 84L88 99" {...body}/>{end ? <path d="M62 61L83 69L104 62" {...body}/> : <path d="M62 61L85 58L112 62" {...body}/>}<path d="M112 62H132" {...gear}/></g>;
+      if (type === 'oneArmRow') return <g><path d="M36 76H112M43 76V103M105 76V103" {...gear}/>{joint(62,44)}<path d="M69 49L103 61M70 51L48 71M103 61L122 91M103 61L112 100" {...body}/>{end ? <path d="M84 55L84 72L96 62" {...body}/> : <path d="M84 55L82 84" {...body}/>} {dumbbell(end ? 96 : 82, end ? 64 : 91)}</g>;
+      if (type === 'bicepsCurl') return <g>{joint(79,25)}<path d="M79 33V72M79 72L61 105M79 72L98 105" {...body}/>{end ? <><path d="M79 45L62 58L70 38M79 45L96 58L88 38" {...body}/>{dumbbell(70,34)}{dumbbell(88,34)}</> : <><path d="M79 45L64 69L59 91M79 45L94 69L99 91" {...body}/>{dumbbell(58,96)}{dumbbell(100,96)}</>}</g>;
+      if (type === 'hyperextension') return <g><path d="M62 68L91 98M48 80L79 111M55 74H92" {...gear}/>{joint(end ? 62 : 45, end ? 50 : 78)}<path d={end ? 'M69 54L98 72L122 84M98 72L114 101M98 72L130 98' : 'M51 83L79 84L104 76M79 84L104 105M79 84L117 96'} {...body}/></g>;
+      if (type === 'legPress') return <g><path d="M37 91L63 48M34 92L63 105M124 28L141 86" {...gear}/>{joint(66,49)}<path d="M70 56L88 77M88 77L62 99" {...body}/>{end ? <path d="M88 77L119 51L132 52" {...body}/> : <path d="M88 77L106 83L125 63" {...body}/>}<path d="M122 38L140 96" {...gear}/></g>;
+      if (type === 'legCurl') return <g><path d="M28 66H116M35 66V98M108 66V98M133 58V103" {...gear}/>{joint(37,51)}<path d="M44 55L87 58L110 67" {...body}/>{end ? <path d="M110 67L123 82L111 98" {...body}/> : <path d="M110 67L133 84" {...body}/>}<circle cx={end ? 110 : 136} cy={end ? 101 : 87} r="7" fill="#3fd6ff"/></g>;
+      if (type === 'legExtension') return <g><path d="M48 42V89H93M48 83H94M58 89V107" {...gear}/>{joint(71,35)}<path d="M71 43V74M71 74L94 82" {...body}/>{end ? <path d="M94 82L131 81" {...body}/> : <path d="M94 82L100 105" {...body}/>}<circle cx={end ? 136 : 102} cy={end ? 81 : 109} r="7" fill="#3fd6ff"/></g>;
+      if (type === 'calfRaise') return <g><path d="M34 105H131M111 26V103" {...gear}/>{joint(73,24)}<path d="M73 32V70M73 43L104 42M73 70L60 99M73 70L89 99" {...body}/>{dumbbell(52,59, true)}{end ? <path d="M52 103L66 96M80 103L94 96" {...gear}/> : <path d="M49 103H66M79 103H96" {...gear}/>}</g>;
+      if (type === 'shoulderPress') return <g><path d="M55 47V94H105M61 94V108M99 94V108" {...gear}/>{joint(80,33)}<path d="M80 41V78M80 78L65 104M80 78L95 104" {...body}/>{end ? <><path d="M80 49L60 34L60 16M80 49L100 34L100 16" {...body}/>{dumbbell(60,12)}{dumbbell(100,12)}</> : <><path d="M80 49L61 55L57 37M80 49L99 55L103 37" {...body}/>{dumbbell(57,32)}{dumbbell(103,32)}</>}</g>;
+      if (type === 'lateralRaise') return <g>{joint(80,25)}<path d="M80 33V72M80 72L63 105M80 72L98 105" {...body}/>{end ? <path d="M80 45L42 52L24 51M80 45L118 52L136 51" {...body}/> : <path d="M80 45L63 72L59 94M80 45L97 72L101 94" {...body}/>} {dumbbell(end ? 19 : 58, end ? 51 : 99)}{dumbbell(end ? 141 : 102, end ? 51 : 99)}</g>;
+      if (type === 'reverseFly') return <g><path d="M52 39V95H106M61 95V108M99 95V108M124 28V102" {...gear}/>{joint(78,37)}<path d="M78 45L84 78M84 78L67 103M84 78L101 103" {...body}/>{end ? <path d="M79 54L45 57L27 52M79 54L111 57L133 52" {...body}/> : <path d="M79 54L101 60L120 57M79 54L99 67L118 62" {...body}/>}</g>;
+      if (type === 'sidePlank') return <g><path d="M18 105H143" {...gear}/>{joint(43,70)}<path d={end ? 'M50 73L86 66L125 79M50 73L37 93L26 104M78 68L76 36' : 'M50 75L84 87L120 98M50 75L38 94L27 104M78 86L76 58'} {...body}/></g>;
+      if (type === 'plank') return <g><path d="M16 105H145" {...gear}/>{joint(40,69)}<path d={end ? 'M47 73L91 78L130 96M49 73L34 96L22 104M91 78L78 103' : 'M47 73L83 83L112 98M49 73L34 96L22 104M83 83L70 104M112 98L127 104'} {...body}/></g>;
+      return <g><path d="M23 100H139M46 100L55 40H112L129 100M58 91H119" {...gear}/>{joint(end ? 94 : 70, end ? 45 : 63)}<path d={end ? 'M94 53L102 78M102 78L83 99M102 78L122 99M94 61L77 69' : 'M70 71L77 90M77 90L61 101M77 90L94 101M70 78L55 84'} {...body}/><path d="M45 101H137" stroke="#8dfc63" strokeWidth="3" strokeDasharray="6 5"/></g>;
+    }
+
+    function ExerciseDiagram({ exercise }) {
+      const type = exercise.kind === 'cardio' ? 'cardio' : TECHNIQUE_TYPES[exercise.id];
+      return <div className="mt-4 overflow-hidden rounded-2xl border border-cyan/15 bg-[#0b1114]">
+        <div className="flex items-center justify-between border-b border-white/5 px-3 py-2"><span className="text-[10px] font-black uppercase tracking-[.16em] text-cyan"><Icon name="person-chalkboard" className="mr-2"/>Техника движения</span><span className="text-[9px] text-muted">схема</span></div>
+        <svg viewBox="0 0 360 160" className="block h-auto w-full" role="img" aria-label={`Техника упражнения: ${exercise.name}. Стартовое и конечное положение.`}>
+          <defs><linearGradient id={`tech-bg-${exercise.id}`} x1="0" x2="1"><stop stopColor="#10191d"/><stop offset="1" stopColor="#0d1316"/></linearGradient></defs>
+          <rect width="360" height="160" fill={`url(#tech-bg-${exercise.id})`}/><rect x="8" y="28" width="166" height="122" rx="16" fill="#ffffff" opacity=".025"/><rect x="186" y="28" width="166" height="122" rx="16" fill="#ffffff" opacity=".025"/>
+          <text x="18" y="19" fill="#8d9aa3" fontSize="10" fontWeight="800" letterSpacing="1.4">СТАРТ</text><text x="196" y="19" fill="#8dfc63" fontSize="10" fontWeight="800" letterSpacing="1.4">ФИНИШ</text>
+          <g transform="translate(10 34)"><TechniqueScene type={type} phase="start"/></g><g transform="translate(188 34)"><TechniqueScene type={type} phase="finish"/></g>
+          <path d="M174 88H186" stroke="#3fd6ff" strokeWidth="3"/><path d="M182 83L188 88L182 93" fill="none" stroke="#3fd6ff" strokeWidth="3" strokeLinecap="round"/>
+        </svg>
+      </div>;
+    }
+
+    function CardioCard({ exercise, index, entry, onChange }) {
+      const minutes = entry?.reps?.[0] ?? '';
+      const modes = [{ id: 'walk', label: 'Дорожка', icon: 'person-walking' }, { id: 'ellipse', label: 'Эллипс', icon: 'person-running' }, { id: 'bike', label: 'Вело', icon: 'bicycle' }];
+      const intensity = [{ id: 'easy', label: 'Легко' }, { id: 'optimal', label: 'Умеренно' }, { id: 'hard', label: 'Тяжело' }];
+      const good = entry?.completed && Number(minutes) >= 8 && Number(minutes) <= 15 && entry?.rpe !== 'hard';
+      return <Card className={`overflow-hidden transition ${entry?.completed ? 'border-cyan/40 shadow-blueglow' : 'border-cyan/20'}`}>
+        <div className="p-4 sm:p-5">
+          <div className="flex gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl font-black ${entry?.completed ? 'bg-cyan text-ink' : 'bg-cyan/10 text-cyan'}`}>{entry?.completed ? <Icon name="check"/> : index + 1}</div><div className="min-w-0 flex-1"><h3 className="font-black">Финишное кардио</h3><p className="mt-1 text-xs text-muted">8–15 минут после силовой части</p></div><span className="h-fit rounded-full bg-cyan/10 px-2.5 py-1 text-[11px] font-black text-cyan">8–15 мин</span></div>
+          <ExerciseDiagram exercise={exercise}/>
+          <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-300/[.04] px-3 py-2 text-xs text-amber-100/80"><Icon name="shield-halved" className="mr-2 text-amber-300"/>Разговорный темп, без бега, ударной нагрузки и чрезмерного наклона.</div>
+          <span className="mb-2 mt-4 block text-[11px] font-bold uppercase tracking-wider text-muted">Тренажёр</span><div className="grid grid-cols-3 gap-2">{modes.map(m => <button key={m.id} onClick={() => onChange({ mode: m.id })} className={`min-h-[58px] rounded-2xl border px-2 text-xs font-bold ${entry?.mode === m.id ? 'border-cyan bg-cyan/10 text-cyan' : 'border-line bg-white/[.025] text-muted'}`}><Icon name={m.icon} className="mb-1 block"/>{m.label}</button>)}</div>
+          <div className="mt-4 grid grid-cols-[105px_1fr] gap-3"><label><span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Минуты</span><input aria-label="Минуты кардио" type="number" inputMode="numeric" min="0" max="90" value={minutes} onChange={e => onChange({ reps: [e.target.value] })} placeholder="12" className="h-14 w-full rounded-2xl border border-line bg-black/25 px-3 text-center text-lg font-black outline-none focus:border-cyan"/></label><div><span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Интенсивность</span><div className="grid grid-cols-3 gap-2">{intensity.map(i => <button key={i.id} onClick={() => onChange({ rpe: i.id })} className={`h-14 rounded-2xl border px-1 text-[10px] font-black ${entry?.rpe === i.id ? (i.id === 'hard' ? 'border-amber-300 bg-amber-300/10 text-amber-200' : 'border-neon bg-neon/10 text-neon') : 'border-line bg-white/[.025] text-muted'}`}>{i.label}</button>)}</div></div></div>
+          <button onClick={() => onChange({ completed: !entry?.completed })} className={`mt-4 min-h-[54px] w-full rounded-2xl px-4 font-black transition active:scale-[.98] ${entry?.completed ? 'bg-cyan text-ink' : 'bg-white/8 text-white'}`}><Icon name={entry?.completed ? 'circle-check' : 'circle'} className="mr-2"/>{entry?.completed ? 'Кардио выполнено' : 'Завершить кардио'}</button>
+        </div>
+        {entry?.completed && <div className={`border-t px-4 py-4 ${good ? 'border-neon/20 bg-neon/[.08]' : 'border-amber-300/20 bg-amber-300/[.08]'}`}><div className="flex gap-3"><Icon name={good ? 'heart-circle-check' : 'heart-pulse'} className={good ? 'mt-1 text-neon' : 'mt-1 text-amber-300'}/><div><p className="text-sm font-black">{good ? 'Финиш закрыт!' : 'Слушай пульс и дыхание'}</p><p className="mt-1 text-xs leading-relaxed text-white/70">{good ? `${minutes} минут умеренного кардио — отличный объём для восстановления и выносливости.` : 'Ориентир — 8–15 минут в разговорном темпе. Если устал после силовой, не форсируй нагрузку.'}</p></div></div></div>}
+      </Card>;
+    }
+
     function getRecommendation(exercise, entry) {
+      if (exercise.kind === 'cardio') return entry?.completed ? { tone: 'cardio', title: 'Кардио выполнено', text: 'Финишная аэробная работа учтена отдельно от силового тоннажа.' } : null;
       if (!entry?.completed) return null;
       if (!entry.rpe) return { tone: 'neutral', title: 'Оцени сложность', text: 'Выбери RPE — так рекомендация на следующую тренировку будет точнее.' };
       const reps = Array.from({ length: exercise.sets }, (_, i) => Number(entry.reps?.[i] || 0));
@@ -269,6 +354,8 @@
             </div>
 
             <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-300/[.04] px-3 py-2 text-xs text-amber-100/80"><Icon name="shield-halved" className="mr-2 text-amber-300" />{exercise.cue}</div>
+
+            <ExerciseDiagram exercise={exercise} />
 
             <div className={`mt-4 grid gap-3 ${exercise.kind === 'bodyweight' ? '' : 'grid-cols-[112px_1fr]'}`}>
               {exercise.kind !== 'bodyweight' && <label className="block">
@@ -343,7 +430,7 @@
                 const dEntries = data.weeks?.[weekKey]?.[day.id]?.exercises || {};
                 const done = day.exercises.every(ex => dEntries[ex.id]?.completed);
                 return <button key={day.id} onClick={() => setSelectedDay(day.id)} className={`min-w-[88px] rounded-2xl border px-4 py-3 text-left transition ${selectedDay === day.id ? 'border-neon bg-neon text-ink shadow-glow' : done ? 'border-neon/25 bg-neon/[.06] text-neon' : 'border-line bg-panel text-muted'}`}>
-                  <span className="block text-xs font-black">{day.short}</span><span className="mt-1 block text-[10px] font-bold">{done ? 'ГОТОВО' : day.exercises.filter(ex => dEntries[ex.id]?.completed).length + '/5'}</span>
+                  <span className="block text-xs font-black">{day.short}</span><span className="mt-1 block text-[10px] font-bold">{done ? 'ГОТОВО' : day.exercises.filter(ex => dEntries[ex.id]?.completed).length + `/${day.exercises.length}`}</span>
                 </button>;
               })}
             </div>
@@ -353,23 +440,18 @@
             <div className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div><p className="text-xs font-black uppercase tracking-[.16em] text-cyan">{workout.label}</p><h2 className="mt-1 text-xl font-black">{workout.title}</h2></div>
-                <div className="rounded-2xl bg-white/5 px-3 py-2 text-right"><b className="block text-lg">{completeCount}/5</b><span className="text-[10px] text-muted">упражнений</span></div>
+                <div className="rounded-2xl bg-white/5 px-3 py-2 text-right"><b className="block text-lg">{completeCount}/{workout.exercises.length}</b><span className="text-[10px] text-muted">пунктов</span></div>
               </div>
-              <div className="mt-4"><ProgressBar value={completeCount} max={5} /></div>
+              <div className="mt-4"><ProgressBar value={completeCount} max={workout.exercises.length} /></div>
               <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/15 bg-amber-300/[.05] p-3 text-xs leading-relaxed text-amber-100/80"><Icon name="triangle-exclamation" className="mt-0.5 text-amber-300" /><span><b className="text-amber-200">Контроль при сколиозе:</b> техника важнее цифры. Избегай чрезмерной осевой нагрузки, боли и рывков.</span></div>
             </div>
           </Card>
 
           <div className="space-y-4">
-            {workout.exercises.map((exercise, index) => <ExerciseCard key={exercise.id} exercise={exercise} index={index} entry={entries[exercise.id] || { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false }} onChange={patch => updateExercise(workout.id, exercise.id, patch)} onStartTimer={startTimer} />)}
+            {workout.exercises.map((exercise, index) => exercise.kind === 'cardio'
+              ? <CardioCard key={exercise.id} exercise={exercise} index={index} entry={entries[exercise.id] || { reps: [''], rpe: '', mode: '', completed: false }} onChange={patch => updateExercise(workout.id, exercise.id, patch)} />
+              : <ExerciseCard key={exercise.id} exercise={exercise} index={index} entry={entries[exercise.id] || { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false }} onChange={patch => updateExercise(workout.id, exercise.id, patch)} onStartTimer={startTimer} />)}
           </div>
-
-          <Card className="overflow-hidden border-cyan/20 p-5 shadow-blueglow">
-            <div className="flex gap-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan/12 text-cyan"><Icon name="person-running" /></div>
-              <div><p className="font-black">Финиш: 8–15 минут кардио</p><p className="mt-1 text-sm leading-relaxed text-muted">Дорожка с умеренным наклоном, эллипс или велотренажёр. Темп разговорный, без ударной нагрузки.</p></div>
-            </div>
-          </Card>
 
           <Card className="p-5">
             <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-wider text-neon">Анализ тренировки</p><h3 className="mt-1 text-lg font-black">{successCount ? `${successCount} упражн. готовы к прогрессии` : 'Заполни подходы и RPE'}</h3></div><button onClick={() => setAnalysisOpen(true)} className="h-12 rounded-2xl bg-white/8 px-4 font-bold text-cyan">Открыть</button></div>
@@ -381,7 +463,7 @@
             <div className="mt-5 space-y-3">
               {workout.exercises.map(ex => {
                 const rec = getRecommendation(ex, entries[ex.id]);
-                return <div key={ex.id} className="rounded-2xl border border-line bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><p className="font-bold">{ex.name}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${rec?.tone === 'success' ? 'bg-neon/12 text-neon' : rec?.tone === 'care' ? 'bg-amber-300/12 text-amber-200' : 'bg-white/7 text-muted'}`}>{rec?.tone === 'success' ? 'ПРОГРЕССИЯ' : rec?.tone === 'care' ? 'БЕРЕЖНО' : 'НЕТ ДАННЫХ'}</span></div><p className="mt-2 text-sm leading-relaxed text-muted">{rec?.text || 'Внеси вес, повторения, RPE и отметь упражнение выполненным.'}</p></div>;
+                return <div key={ex.id} className="rounded-2xl border border-line bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><p className="font-bold">{ex.name}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${rec?.tone === 'success' ? 'bg-neon/12 text-neon' : rec?.tone === 'care' ? 'bg-amber-300/12 text-amber-200' : rec?.tone === 'cardio' ? 'bg-cyan/12 text-cyan' : 'bg-white/7 text-muted'}`}>{rec?.tone === 'success' ? 'ПРОГРЕССИЯ' : rec?.tone === 'care' ? 'БЕРЕЖНО' : rec?.tone === 'cardio' ? 'КАРДИО' : 'НЕТ ДАННЫХ'}</span></div><p className="mt-2 text-sm leading-relaxed text-muted">{rec?.text || (ex.kind === 'cardio' ? 'Укажи минуты, интенсивность и заверши кардио.' : 'Внеси вес, повторения, RPE и отметь упражнение выполненным.')}</p></div>;
               })}
             </div>
           </Modal>
@@ -398,12 +480,11 @@
             const done = day.exercises.filter(ex => entries[ex.id]?.completed).length;
             return <Card key={day.id} className="overflow-hidden">
               <div className="p-5">
-                <div className="flex items-center justify-between"><div className={`grid h-12 w-12 place-items-center rounded-2xl font-black ${di % 2 ? 'bg-cyan/12 text-cyan' : 'bg-neon/12 text-neon'}`}>{day.short}</div><span className="text-xs font-bold text-muted">{done}/5</span></div>
+                <div className="flex items-center justify-between"><div className={`grid h-12 w-12 place-items-center rounded-2xl font-black ${di % 2 ? 'bg-cyan/12 text-cyan' : 'bg-neon/12 text-neon'}`}>{day.short}</div><span className="text-xs font-bold text-muted">{done}/{day.exercises.length}</span></div>
                 <h2 className="mt-4 text-lg font-black">{day.title}</h2>
                 <ol className="mt-4 space-y-3">
-                  {day.exercises.map((ex, i) => <li key={ex.id} className="flex gap-3 text-sm"><span className="font-black text-white/25">0{i + 1}</span><span className="flex-1 text-white/75">{ex.name}<small className="mt-0.5 block text-muted">{ex.sets} × {ex.min === ex.max ? ex.max : `${ex.min}–${ex.max}`} · {ex.load}</small></span>{entries[ex.id]?.completed && <Icon name="circle-check" className="text-neon" />}</li>)}
+                  {day.exercises.map((ex, i) => <li key={ex.id} className="flex gap-3 text-sm"><span className="font-black text-white/25">0{i + 1}</span><span className="flex-1 text-white/75">{ex.name}<small className="mt-0.5 block text-muted">{ex.kind === 'cardio' ? '8–15 минут · разговорный темп' : `${ex.sets} × ${ex.min === ex.max ? ex.max : `${ex.min}–${ex.max}`} · ${ex.load}`}</small></span>{entries[ex.id]?.completed && <Icon name="circle-check" className="text-neon" />}</li>)}
                 </ol>
-                <div className="mt-4 rounded-2xl bg-cyan/[.06] p-3 text-xs text-cyan"><Icon name="person-running" className="mr-2" />+ 8–15 минут кардио</div>
                 <button onClick={() => onOpenDay(day.id)} className="mt-4 h-12 w-full rounded-2xl bg-white/8 font-black active:scale-[.98]">Открыть тренировку <Icon name="arrow-right" className="ml-2" /></button>
               </div>
             </Card>;
@@ -446,7 +527,7 @@
         </div>
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-neon">Рабочий вес</p><h2 className="mt-1 font-black">Динамика упражнения</h2></div><Icon name="chart-line" className="text-neon" /></div>
-          <select value={selected} onChange={e => setSelected(e.target.value)} className="mt-4 h-12 w-full rounded-2xl border border-line bg-[#0b0f11] px-4 text-sm font-bold outline-none focus:border-neon">{DAYS.map(day => <optgroup key={day.id} label={day.label}>{day.exercises.filter(e => e.kind !== 'bodyweight').map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}</optgroup>)}</select>
+          <select value={selected} onChange={e => setSelected(e.target.value)} className="mt-4 h-12 w-full rounded-2xl border border-line bg-[#0b0f11] px-4 text-sm font-bold outline-none focus:border-neon">{DAYS.map(day => <optgroup key={day.id} label={day.label}>{day.exercises.filter(e => e.kind !== 'bodyweight' && e.kind !== 'cardio').map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}</optgroup>)}</select>
           <div className="mt-4"><MiniLineChart points={exercisePoints} suffix="" /></div>
         </Card>
         <Card className="p-5">
