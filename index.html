@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0d0f" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="description" content="IRON FLOW — мобильный дневник тренировок, прогрессии нагрузок и белка" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="IRON FLOW" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>IRON FLOW — дневник тренировок</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%230a0d0f'/%3E%3Cpath d='M25 50h13v28H25zM90 50h13v28H90zM16 56h9v16h-9zM103 56h9v16h-9zM38 60h52v8H38z' fill='%238dfc63'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0d0f'/%3E%3Cpath d='M35 70h18v40H35zM127 70h18v40h-18zM22 79h13v22H22zM145 79h13v22h-13zM53 84h74v12H53z' fill='%238dfc63'/%3E%3C/svg%3E" />
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22IRON%20FLOW%20%E2%80%94%20%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B8%D0%BA%20%D1%82%D1%80%D0%B5%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%BA%22%2C%22short_name%22%3A%22IRON%20FLOW%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0d0f%22%2C%22theme_color%22%3A%22%230a0d0f%22%2C%22description%22%3A%22%D0%9C%D0%BE%D0%B1%D0%B8%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9%20%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B8%D0%BA%20%D1%82%D1%80%D0%B5%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%BA%22%7D" />
+  <script>
+    tailwind = { config: { theme: { extend: {
+      colors: { ink: '#0a0d0f', panel: '#111619', line: '#253038', neon: '#8dfc63', cyan: '#3fd6ff', muted: '#8d9aa3' },
+      boxShadow: { glow: '0 0 28px rgba(141,252,99,.16)', blueglow: '0 0 28px rgba(63,214,255,.14)' }
+    }}}};
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <style>
+    :root { background: #0a0d0f; color: #f7fafc; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { -webkit-tap-highlight-color: transparent; }
+    html { background: #0a0d0f; scroll-behavior: smooth; }
+    body { margin: 0; min-height: 100vh; min-height: 100dvh; background:
+      radial-gradient(circle at 12% -10%, rgba(63,214,255,.12), transparent 26rem),
+      radial-gradient(circle at 100% 0%, rgba(141,252,99,.09), transparent 30rem), #0a0d0f; }
+    button, input, textarea, select { font: inherit; }
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+    .safe-bottom { padding-bottom: max(.65rem, env(safe-area-inset-bottom)); }
+    .glass { background: rgba(17,22,25,.88); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+    .grid-bg { background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size: 24px 24px; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { scrollbar-width: none; }
+    .pulse-ring { animation: ring 1.5s ease-out infinite; }
+    @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(141,252,99,.4); } 75%,100% { box-shadow: 0 0 0 14px rgba(141,252,99,0); } }
+    @keyframes rise { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .rise { animation: rise .35s ease-out both; }
+    @media (display-mode: standalone) { .standalone-hidden { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <noscript>Для работы IRON FLOW необходимо включить JavaScript.</noscript>
+
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const STORAGE_KEY = 'ironflow_state_v3';
+    const CLOUD_KEY = 'ironflow_cloud_v1';
+    const DAYS = [
+      {
+        id: 'mon', weekday: 1, short: 'ПН', label: 'Понедельник', title: 'Грудь + Трицепс + Пресс', accent: 'neon',
+        exercises: [
+          { id: 'mon-1', name: 'Жим гантелей лёжа', detail: 'Горизонтальная скамья', sets: 3, min: 10, max: 12, load: '12–14 кг', kind: 'dumbbell', multiplier: 2, cue: 'Лопатки сведены, поясница нейтральна' },
+          { id: 'mon-2', name: 'Сведение рук «Бабочка»', detail: 'Тренажёр', sets: 3, min: 12, max: 12, load: '25–30 кг', kind: 'machine', multiplier: 1, cue: 'Плечи опущены, движение без рывка' },
+          { id: 'mon-3', name: 'Жим в Смите / Отжимания', detail: 'Выбери комфортный вариант', sets: 3, min: 8, max: 10, load: '20 кг', kind: 'machine', multiplier: 1, cue: 'Не прогибай поясницу, держи корпус собранным' },
+          { id: 'mon-4', name: 'Разгибание рук с канатом', detail: 'Верхний блок', sets: 3, min: 12, max: 12, load: '15–20 кг', kind: 'machine', multiplier: 1, cue: 'Локти остаются у корпуса' },
+          { id: 'mon-5', name: 'Скручивания на пресс', detail: 'Собственный вес', sets: 3, min: 15, max: 20, load: 'без веса', kind: 'bodyweight', multiplier: 0, cue: 'Поднимай грудной отдел, не тяни шею' }
+        ]
+      },
+      {
+        id: 'tue', weekday: 2, short: 'ВТ', label: 'Вторник', title: 'Спина + Бицепс + Поясница', accent: 'cyan',
+        exercises: [
+          { id: 'tue-1', name: 'Верхняя тяга к груди', detail: 'Широкий хват', sets: 3, min: 10, max: 12, load: '35 кг', kind: 'machine', multiplier: 1, cue: 'Тяни грудью вверх, не уводи корпус назад' },
+          { id: 'tue-2', name: 'Нижняя тяга к поясу', detail: 'Сидя в блочном тренажёре', sets: 3, min: 10, max: 12, load: '30 кг', kind: 'machine', multiplier: 1, cue: 'Спина нейтральна, без раскачки' },
+          { id: 'tue-3', name: 'Тяга гантели одной рукой', detail: 'В наклоне с опорой', sets: 3, min: 10, max: 10, load: '8–10 кг', kind: 'dumbbell', multiplier: 2, cue: 'Обязательно используй опору, таз держи ровно' },
+          { id: 'tue-4', name: 'Сгибание рук на бицепс', detail: 'Гантели или блок', sets: 3, min: 10, max: 12, load: '8 кг', kind: 'dumbbell', multiplier: 2, cue: 'Не раскачивай корпус' },
+          { id: 'tue-5', name: 'Наклонная гиперэкстензия', detail: 'Без переразгибания', sets: 3, min: 12, max: 12, load: 'блин 10 кг', kind: 'dumbbell', multiplier: 1, cue: 'Остановись на прямой линии корпуса' }
+        ]
+      },
+      {
+        id: 'thu', weekday: 4, short: 'ЧТ', label: 'Четверг', title: 'Ноги + Пресс', accent: 'neon',
+        exercises: [
+          { id: 'thu-1', name: 'Жим ногами', detail: 'Тренажёр', sets: 3, min: 12, max: 15, load: '55 кг', kind: 'machine', multiplier: 1, cue: 'Таз прижат, колени идут по линии стоп' },
+          { id: 'thu-2', name: 'Сгибание ног', detail: 'Задняя поверхность бедра', sets: 3, min: 12, max: 12, load: '35 кг', kind: 'machine', multiplier: 1, cue: 'Двигайся плавно, без отрыва таза' },
+          { id: 'thu-3', name: 'Разгибание ног', detail: 'Квадрицепс', sets: 3, min: 12, max: 12, load: '30 кг', kind: 'machine', multiplier: 1, cue: 'Не бросай вес в нижней точке' },
+          { id: 'thu-4', name: 'Подъём на носки', detail: 'Икры', sets: 3, min: 15, max: 20, load: '10 кг', kind: 'dumbbell', multiplier: 1, cue: 'Полная амплитуда без пружинящих движений' },
+          { id: 'thu-5', name: 'Скручивания с блином', detail: 'Пресс', sets: 3, min: 20, max: 20, load: '10 кг', kind: 'dumbbell', multiplier: 1, cue: 'Не тяни голову и не перегружай поясницу' }
+        ]
+      },
+      {
+        id: 'fri', weekday: 5, short: 'ПТ', label: 'Пятница', title: 'Плечи + Кор', accent: 'cyan',
+        exercises: [
+          { id: 'fri-1', name: 'Жим гантелей сидя', detail: 'С опорой спины', sets: 3, min: 10, max: 12, load: '8–10 кг', kind: 'dumbbell', multiplier: 2, cue: 'Спина прижата, не прогибайся под весом' },
+          { id: 'fri-2', name: 'Махи через стороны', detail: 'Гантели', sets: 3, min: 12, max: 12, load: '6–8 кг', kind: 'dumbbell', multiplier: 2, cue: 'Поднимай локти, не раскачивай корпус' },
+          { id: 'fri-3', name: 'Обратная «Бабочка»', detail: 'Задняя дельта', sets: 3, min: 12, max: 12, load: '20–25 кг', kind: 'machine', multiplier: 1, cue: 'Шея длинная, лопатки двигаются плавно' },
+          { id: 'fri-4', name: 'Боковая планка', detail: 'На каждую сторону', sets: 3, min: 30, max: 30, unit: 'сек/сторона', load: 'собственный вес', kind: 'bodyweight', multiplier: 0, cue: 'Тело в одной линии, таз не провисает' },
+          { id: 'fri-5', name: 'Классическая планка', detail: 'Статическое удержание', sets: 3, min: 45, max: 60, unit: 'сек', load: 'собственный вес', kind: 'bodyweight', multiplier: 0, cue: 'Рёбра собраны, поясница нейтральна' }
+        ]
+      }
+    ];
+
+    const RPE_OPTIONS = [
+      { id: 'easy', label: 'Легко', icon: 'feather' },
+      { id: 'optimal', label: 'Оптимально', sub: '1–2 в запасе', icon: 'gauge-high' },
+      { id: 'hard', label: 'Тяжело / Отказ', icon: 'fire' }
+    ];
+
+    const todayKey = () => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    const getWeekKey = (date = new Date()) => {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const day = d.getDay() || 7;
+      d.setDate(d.getDate() - day + 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    const DEFAULT_STATE = {
+      schema: 3,
+      updatedAt: Date.now(),
+      profile: { height: 188, weight: 79.6, muscle: 34.6, fat: 19, proteinGoal: 120 },
+      protein: { date: todayKey(), grams: 0 },
+      weeks: {},
+      history: []
+    };
+
+    const cloneDefault = () => JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const normalizeState = (value) => {
+      const base = cloneDefault();
+      if (!value || typeof value !== 'object') return base;
+      return {
+        ...base,
+        ...value,
+        profile: { ...base.profile, ...(value.profile || {}) },
+        protein: { ...base.protein, ...(value.protein || {}) },
+        weeks: value.weeks && typeof value.weeks === 'object' ? value.weeks : {},
+        history: Array.isArray(value.history) ? value.history : []
+      };
+    };
+
+    const loadLocal = () => {
+      try { return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY))); }
+      catch { return cloneDefault(); }
+    };
+
+    const formatNumber = (n, digits = 0) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: digits }).format(Number(n || 0));
+    const formatDate = (date) => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date));
+    const escapeHtml = (s) => String(s).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
+
+    function Icon({ name, className = '' }) {
+      return <i aria-hidden="true" className={`fa-solid fa-${name} ${className}`}></i>;
+    }
+
+    function Card({ children, className = '' }) {
+      return <section className={`rounded-[1.6rem] border border-line bg-panel/90 ${className}`}>{children}</section>;
+    }
+
+    function ProgressBar({ value, max = 100, color = 'neon', marker }) {
+      const percent = Math.max(0, Math.min(100, (Number(value) / max) * 100));
+      return (
+        <div className="relative h-3 overflow-visible rounded-full bg-white/7">
+          <div className={`h-full rounded-full transition-all duration-500 ${color === 'cyan' ? 'bg-cyan shadow-blueglow' : 'bg-neon shadow-glow'}`} style={{ width: `${percent}%` }} />
+          {marker != null && <div className="absolute -top-1 h-5 w-px bg-white/60" style={{ left: `${Math.min(100, marker / max * 100)}%` }} title={`Цель ${marker}`} />}
+        </div>
+      );
+    }
+
+    function Modal({ open, onClose, children, wide = false }) {
+      if (!open) return null;
+      return ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-5" role="dialog" aria-modal="true">
+          <button className="absolute inset-0 cursor-default" aria-label="Закрыть" onClick={onClose}></button>
+          <div className={`rise relative max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] border border-line bg-[#101518] p-5 shadow-2xl sm:rounded-[2rem] ${wide ? 'max-w-2xl' : 'max-w-lg'}`}>
+            <button onClick={onClose} className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/7 text-muted hover:bg-white/12 hover:text-white" aria-label="Закрыть"><Icon name="xmark" /></button>
+            {children}
+          </div>
+        </div>, document.body
+      );
+    }
+
+    function TimerBar({ timer, setTimer, running, setRunning, done, clearDone }) {
+      const start = (seconds) => { clearDone(); setTimer(seconds); setRunning(true); };
+      const mm = String(Math.floor((timer || 0) / 60)).padStart(2, '0');
+      const ss = String((timer || 0) % 60).padStart(2, '0');
+      return (
+        <div className={`border-b px-4 py-2 transition ${done ? 'border-neon bg-neon/15 pulse-ring' : 'border-line bg-[#0d1113]'}`}>
+          <div className="mx-auto flex max-w-6xl items-center gap-2 overflow-x-auto hide-scrollbar">
+            <div className="mr-1 flex min-w-[82px] items-center gap-2 font-black tabular-nums">
+              <Icon name={done ? 'bell' : 'stopwatch'} className={done ? 'text-neon' : 'text-cyan'} />
+              <span>{timer == null ? 'ОТДЫХ' : `${mm}:${ss}`}</span>
+            </div>
+            {[60, 90, 120].map(s => <button key={s} onClick={() => start(s)} className="h-10 min-w-[58px] rounded-xl border border-line bg-white/[.04] px-3 text-sm font-bold active:scale-95">{s}с</button>)}
+            {timer != null && timer > 0 && <button onClick={() => setRunning(v => !v)} className="grid h-10 min-w-10 place-items-center rounded-xl bg-cyan text-ink" aria-label={running ? 'Пауза' : 'Продолжить'}><Icon name={running ? 'pause' : 'play'} /></button>}
+            {timer != null && <button onClick={() => { setTimer(null); setRunning(false); clearDone(); }} className="grid h-10 min-w-10 place-items-center rounded-xl bg-white/8 text-muted" aria-label="Сбросить таймер"><Icon name="rotate-left" /></button>}
+            {done && <button onClick={clearDone} className="ml-auto whitespace-nowrap rounded-xl bg-neon px-4 py-2 text-sm font-black text-ink">ГОТОВ!</button>}
+          </div>
+        </div>
+      );
+    }
+
+    function ProteinTracker({ data, onAdd, onReset }) {
+      const grams = data.date === todayKey() ? Number(data.grams || 0) : 0;
+      const options = [
+        { amount: 30, name: 'TEOS PRO' },
+        { amount: 25, name: 'Exponenta Norm-Pro' },
+        { amount: 30, name: 'Exponenta Bio-Skyr' },
+        { amount: 25, name: 'Обычный приём пищи' }
+      ];
+      return (
+        <Card className="overflow-hidden p-5 shadow-blueglow">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[.18em] text-cyan">Белок сегодня</p>
+              <div className="mt-1 flex items-baseline gap-2"><span className="text-3xl font-black">{grams}</span><span className="text-muted">/ 140 г</span></div>
+            </div>
+            <button onClick={onReset} className="grid h-10 w-10 place-items-center rounded-full bg-white/7 text-muted" aria-label="Сбросить белок"><Icon name="rotate-left" /></button>
+          </div>
+          <div className="mt-4"><ProgressBar value={grams} max={140} color="cyan" marker={120} /></div>
+          <div className="mt-2 flex justify-between text-[11px] text-muted"><span>0 г</span><span className="text-neon">цель 120 г</span><span>140 г</span></div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {options.map(o => <button key={o.name} onClick={() => onAdd(o.amount)} className="min-h-[58px] rounded-2xl border border-line bg-white/[.035] px-3 py-2 text-left active:scale-[.98]">
+              <span className="block font-black text-neon">+{o.amount} г</span><span className="block truncate text-xs text-muted">{o.name}</span>
+            </button>)}
+          </div>
+        </Card>
+      );
+    }
+
+    function getRecommendation(exercise, entry) {
+      if (!entry?.completed) return null;
+      if (!entry.rpe) return { tone: 'neutral', title: 'Оцени сложность', text: 'Выбери RPE — так рекомендация на следующую тренировку будет точнее.' };
+      const reps = Array.from({ length: exercise.sets }, (_, i) => Number(entry.reps?.[i] || 0));
+      const allAtTop = reps.every(r => r >= exercise.max);
+      const loadReady = exercise.kind === 'bodyweight' || Number(entry.weight) > 0;
+      if (allAtTop && loadReady && (entry.rpe === 'easy' || entry.rpe === 'optimal')) {
+        if (exercise.kind === 'bodyweight') return { tone: 'success', title: 'Отличная работа!', text: `На следующей неделе добавь 5–10 секунд к подходу или усложни вариант, сохраняя идеальную технику.` };
+        const delta = exercise.kind === 'dumbbell' ? '1–2 кг' : '2.5–5 кг';
+        const w = Number(entry.weight || 0);
+        const exact = exercise.kind === 'dumbbell' ? `${formatNumber(w + 1, 1)}–${formatNumber(w + 2, 1)} кг` : `${formatNumber(w + 2.5, 1)}–${formatNumber(w + 5, 1)} кг`;
+        return { tone: 'success', title: 'Отличная работа!', text: `На следующей неделе увеличь вес на +${delta} (${exercise.kind === 'dumbbell' ? 'для гантелей' : 'для блочного тренажёра'}). Ориентир: ${exact}.` };
+      }
+      const w = Number(entry.weight || 0);
+      const reduced = w ? ` Если техника распадается — попробуй ${formatNumber(w * .9, 1)} кг.` : '';
+      return { tone: 'care', title: 'Ты выложился на максимум!', text: `Так как важно беречь спину при сколиозе и не перегружать ЦНС, на следующей тренировке оставь этот же вес или снизь на 10% для идеальной техники.${reduced}` };
+    }
+
+    function ExerciseCard({ exercise, index, entry, onChange, onStartTimer }) {
+      const reps = entry?.reps || Array(exercise.sets).fill('');
+      const recommendation = getRecommendation(exercise, entry);
+      const tone = recommendation?.tone;
+      return (
+        <Card className={`overflow-hidden transition ${entry?.completed ? 'border-neon/35' : ''}`}>
+          <div className="p-4 sm:p-5">
+            <div className="flex gap-3">
+              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl font-black ${entry?.completed ? 'bg-neon text-ink' : 'bg-white/7 text-muted'}`}>{entry?.completed ? <Icon name="check" /> : index + 1}</div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black leading-tight text-white">{exercise.name}</h3>
+                <p className="mt-1 text-xs text-muted">{exercise.detail} · {exercise.sets} × {exercise.min === exercise.max ? exercise.max : `${exercise.min}–${exercise.max}`} {exercise.unit || 'повт.'}</p>
+              </div>
+              <span className="h-fit whitespace-nowrap rounded-full bg-cyan/10 px-2.5 py-1 text-[11px] font-black text-cyan">{exercise.load}</span>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-300/[.04] px-3 py-2 text-xs text-amber-100/80"><Icon name="shield-halved" className="mr-2 text-amber-300" />{exercise.cue}</div>
+
+            <div className={`mt-4 grid gap-3 ${exercise.kind === 'bodyweight' ? '' : 'grid-cols-[112px_1fr]'}`}>
+              {exercise.kind !== 'bodyweight' && <label className="block">
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Вес, кг</span>
+                <input type="number" inputMode="decimal" min="0" step="0.5" value={entry?.weight ?? ''} onChange={e => onChange({ weight: e.target.value })} placeholder={exercise.load.replace(/[^0-9.,–-]/g, '')} className="h-14 w-full rounded-2xl border border-line bg-black/25 px-4 text-center text-lg font-black outline-none focus:border-cyan" />
+              </label>}
+              <div>
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Повторения по подходам</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: exercise.sets }, (_, i) => <label key={i} className="relative">
+                    <input aria-label={`Подход ${i + 1}`} type="number" inputMode="numeric" min="0" max="999" value={reps[i] ?? ''} onChange={e => { const next = [...reps]; next[i] = e.target.value; onChange({ reps: next }); }} placeholder={String(exercise.max)} className="h-14 w-full rounded-2xl border border-line bg-black/25 px-2 pt-3 text-center text-lg font-black outline-none focus:border-neon" />
+                    <span className="pointer-events-none absolute left-0 right-0 top-1 text-center text-[9px] font-bold uppercase text-muted">{i + 1} сет</span>
+                  </label>)}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-muted">Субъективная сложность (RPE)</span>
+              <div className="grid grid-cols-3 gap-2">
+                {RPE_OPTIONS.map(r => <button key={r.id} onClick={() => onChange({ rpe: r.id })} className={`min-h-[62px] rounded-2xl border px-2 py-2 text-center transition active:scale-95 ${entry?.rpe === r.id ? (r.id === 'hard' ? 'border-amber-300 bg-amber-300/12 text-amber-200' : 'border-cyan bg-cyan/12 text-cyan') : 'border-line bg-white/[.025] text-muted'}`}>
+                  <Icon name={r.icon} className="mb-1 block" /><span className="block text-[11px] font-black leading-tight">{r.label}</span>{r.sub && <span className="block text-[9px]">{r.sub}</span>}
+                </button>)}
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => onChange({ completed: !entry?.completed })} className={`min-h-[54px] flex-1 rounded-2xl px-4 font-black transition active:scale-[.98] ${entry?.completed ? 'bg-neon text-ink shadow-glow' : 'bg-white/8 text-white'}`}>
+                <Icon name={entry?.completed ? 'circle-check' : 'circle'} className="mr-2" />{entry?.completed ? 'Выполнено' : 'Отметить выполненным'}
+              </button>
+              <button onClick={() => onStartTimer(90)} className="grid min-h-[54px] w-14 place-items-center rounded-2xl border border-line bg-white/[.04] text-cyan" aria-label="Запустить отдых 90 секунд"><Icon name="stopwatch" /></button>
+            </div>
+          </div>
+
+          {recommendation && <div className={`border-t px-4 py-4 ${tone === 'success' ? 'border-neon/20 bg-neon/[.08]' : tone === 'care' ? 'border-amber-300/20 bg-amber-300/[.08]' : 'border-line bg-white/[.025]'}`}>
+            <div className="flex gap-3">
+              <Icon name={tone === 'success' ? 'arrow-trend-up' : tone === 'care' ? 'heart-pulse' : 'sliders'} className={`mt-1 ${tone === 'success' ? 'text-neon' : tone === 'care' ? 'text-amber-300' : 'text-cyan'}`} />
+              <div><p className="text-sm font-black">{recommendation.title}</p><p className="mt-1 text-xs leading-relaxed text-white/70">{recommendation.text}</p></div>
+            </div>
+          </div>}
+        </Card>
+      );
+    }
+
+    function WorkoutView({ data, selectedDay, setSelectedDay, weekKey, updateExercise, addProtein, resetProtein, startTimer, analysisOpen, setAnalysisOpen }) {
+      const workout = DAYS.find(d => d.id === selectedDay) || DAYS[0];
+      const entries = data.weeks?.[weekKey]?.[workout.id]?.exercises || {};
+      const completeCount = workout.exercises.filter(ex => entries[ex.id]?.completed).length;
+      const successCount = workout.exercises.filter(ex => getRecommendation(ex, entries[ex.id])?.tone === 'success').length;
+      const tonnage = workout.exercises.reduce((sum, ex) => {
+        const e = entries[ex.id];
+        if (!e?.completed || !ex.multiplier) return sum;
+        return sum + Number(e.weight || 0) * (e.reps || []).reduce((a, r) => a + Number(r || 0), 0) * ex.multiplier;
+      }, 0);
+      return (
+        <div className="space-y-5">
+          <div className="grid gap-5 lg:grid-cols-[1.4fr_.8fr]">
+            <Card className="relative overflow-hidden p-5 grid-bg">
+              <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-neon/10 blur-3xl"></div>
+              <p className="text-xs font-black uppercase tracking-[.2em] text-neon">Тренируйся умно</p>
+              <h1 className="mt-2 max-w-xl text-3xl font-black leading-[1.04] sm:text-4xl">Сильнее каждую неделю.<br/><span className="text-white/45">Без риска для спины.</span></h1>
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {[['79.6','кг вес'],['34.6','кг мышц'],['19%','жир']].map(([v,l]) => <div key={l} className="rounded-2xl border border-white/5 bg-black/20 p-3"><b className="block text-lg">{v}</b><span className="text-[10px] uppercase tracking-wider text-muted">{l}</span></div>)}
+              </div>
+            </Card>
+            <ProteinTracker data={data.protein} onAdd={addProtein} onReset={resetProtein} />
+          </div>
+
+          <div className="overflow-x-auto hide-scrollbar">
+            <div className="flex min-w-max gap-2">
+              {DAYS.map(day => {
+                const dEntries = data.weeks?.[weekKey]?.[day.id]?.exercises || {};
+                const done = day.exercises.every(ex => dEntries[ex.id]?.completed);
+                return <button key={day.id} onClick={() => setSelectedDay(day.id)} className={`min-w-[88px] rounded-2xl border px-4 py-3 text-left transition ${selectedDay === day.id ? 'border-neon bg-neon text-ink shadow-glow' : done ? 'border-neon/25 bg-neon/[.06] text-neon' : 'border-line bg-panel text-muted'}`}>
+                  <span className="block text-xs font-black">{day.short}</span><span className="mt-1 block text-[10px] font-bold">{done ? 'ГОТОВО' : day.exercises.filter(ex => dEntries[ex.id]?.completed).length + '/5'}</span>
+                </button>;
+              })}
+            </div>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="text-xs font-black uppercase tracking-[.16em] text-cyan">{workout.label}</p><h2 className="mt-1 text-xl font-black">{workout.title}</h2></div>
+                <div className="rounded-2xl bg-white/5 px-3 py-2 text-right"><b className="block text-lg">{completeCount}/5</b><span className="text-[10px] text-muted">упражнений</span></div>
+              </div>
+              <div className="mt-4"><ProgressBar value={completeCount} max={5} /></div>
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/15 bg-amber-300/[.05] p-3 text-xs leading-relaxed text-amber-100/80"><Icon name="triangle-exclamation" className="mt-0.5 text-amber-300" /><span><b className="text-amber-200">Контроль при сколиозе:</b> техника важнее цифры. Избегай чрезмерной осевой нагрузки, боли и рывков.</span></div>
+            </div>
+          </Card>
+
+          <div className="space-y-4">
+            {workout.exercises.map((exercise, index) => <ExerciseCard key={exercise.id} exercise={exercise} index={index} entry={entries[exercise.id] || { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false }} onChange={patch => updateExercise(workout.id, exercise.id, patch)} onStartTimer={startTimer} />)}
+          </div>
+
+          <Card className="overflow-hidden border-cyan/20 p-5 shadow-blueglow">
+            <div className="flex gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan/12 text-cyan"><Icon name="person-running" /></div>
+              <div><p className="font-black">Финиш: 8–15 минут кардио</p><p className="mt-1 text-sm leading-relaxed text-muted">Дорожка с умеренным наклоном, эллипс или велотренажёр. Темп разговорный, без ударной нагрузки.</p></div>
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-wider text-neon">Анализ тренировки</p><h3 className="mt-1 text-lg font-black">{successCount ? `${successCount} упражн. готовы к прогрессии` : 'Заполни подходы и RPE'}</h3></div><button onClick={() => setAnalysisOpen(true)} className="h-12 rounded-2xl bg-white/8 px-4 font-bold text-cyan">Открыть</button></div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center"><div className="rounded-xl bg-black/20 p-3"><b>{completeCount}</b><span className="block text-[10px] text-muted">готово</span></div><div className="rounded-xl bg-black/20 p-3"><b className="text-neon">{successCount}</b><span className="block text-[10px] text-muted">повысить вес</span></div><div className="rounded-xl bg-black/20 p-3"><b>{formatNumber(tonnage)}</b><span className="block text-[10px] text-muted">кг тоннаж</span></div></div>
+          </Card>
+
+          <Modal open={analysisOpen} onClose={() => setAnalysisOpen(false)} wide>
+            <p className="text-xs font-black uppercase tracking-[.18em] text-cyan">Умный разбор</p><h2 className="mt-2 pr-12 text-2xl font-black">{workout.title}</h2>
+            <div className="mt-5 space-y-3">
+              {workout.exercises.map(ex => {
+                const rec = getRecommendation(ex, entries[ex.id]);
+                return <div key={ex.id} className="rounded-2xl border border-line bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><p className="font-bold">{ex.name}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${rec?.tone === 'success' ? 'bg-neon/12 text-neon' : rec?.tone === 'care' ? 'bg-amber-300/12 text-amber-200' : 'bg-white/7 text-muted'}`}>{rec?.tone === 'success' ? 'ПРОГРЕССИЯ' : rec?.tone === 'care' ? 'БЕРЕЖНО' : 'НЕТ ДАННЫХ'}</span></div><p className="mt-2 text-sm leading-relaxed text-muted">{rec?.text || 'Внеси вес, повторения, RPE и отметь упражнение выполненным.'}</p></div>;
+              })}
+            </div>
+          </Modal>
+        </div>
+      );
+    }
+
+    function PlanView({ data, weekKey, onOpenDay }) {
+      return <div className="space-y-5">
+        <div><p className="text-xs font-black uppercase tracking-[.2em] text-neon">Недельный сплит</p><h1 className="mt-2 text-3xl font-black">4 тренировки.<br/><span className="text-white/40">Одна понятная система.</span></h1></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {DAYS.map((day, di) => {
+            const entries = data.weeks?.[weekKey]?.[day.id]?.exercises || {};
+            const done = day.exercises.filter(ex => entries[ex.id]?.completed).length;
+            return <Card key={day.id} className="overflow-hidden">
+              <div className="p-5">
+                <div className="flex items-center justify-between"><div className={`grid h-12 w-12 place-items-center rounded-2xl font-black ${di % 2 ? 'bg-cyan/12 text-cyan' : 'bg-neon/12 text-neon'}`}>{day.short}</div><span className="text-xs font-bold text-muted">{done}/5</span></div>
+                <h2 className="mt-4 text-lg font-black">{day.title}</h2>
+                <ol className="mt-4 space-y-3">
+                  {day.exercises.map((ex, i) => <li key={ex.id} className="flex gap-3 text-sm"><span className="font-black text-white/25">0{i + 1}</span><span className="flex-1 text-white/75">{ex.name}<small className="mt-0.5 block text-muted">{ex.sets} × {ex.min === ex.max ? ex.max : `${ex.min}–${ex.max}`} · {ex.load}</small></span>{entries[ex.id]?.completed && <Icon name="circle-check" className="text-neon" />}</li>)}
+                </ol>
+                <div className="mt-4 rounded-2xl bg-cyan/[.06] p-3 text-xs text-cyan"><Icon name="person-running" className="mr-2" />+ 8–15 минут кардио</div>
+                <button onClick={() => onOpenDay(day.id)} className="mt-4 h-12 w-full rounded-2xl bg-white/8 font-black active:scale-[.98]">Открыть тренировку <Icon name="arrow-right" className="ml-2" /></button>
+              </div>
+            </Card>;
+          })}
+        </div>
+      </div>;
+    }
+
+    function MiniLineChart({ points, color = '#8dfc63', suffix = '' }) {
+      if (!points.length) return <div className="grid h-44 place-items-center rounded-2xl border border-dashed border-line text-center text-sm text-muted">Данные появятся после первой<br/>завершённой тренировки</div>;
+      const width = 340, height = 170, padX = 28, padY = 24;
+      const values = points.map(p => Number(p.value || 0));
+      const min = Math.min(...values), max = Math.max(...values);
+      const range = max - min || 1;
+      const coords = points.map((p, i) => ({ x: points.length === 1 ? width / 2 : padX + i * (width - padX * 2) / (points.length - 1), y: height - padY - (Number(p.value) - min) / range * (height - padY * 2), ...p }));
+      return <div className="overflow-hidden rounded-2xl bg-black/20 p-2"><svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full" role="img" aria-label="График прогресса">
+        {[0,1,2,3].map(i => <line key={i} x1="18" x2={width - 12} y1={25 + i * 40} y2={25 + i * 40} stroke="rgba(255,255,255,.07)" />)}
+        {coords.length > 1 && <polyline fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" points={coords.map(p => `${p.x},${p.y}`).join(' ')} />}
+        {coords.map((p, i) => <g key={i}><circle cx={p.x} cy={p.y} r="6" fill="#0a0d0f" stroke={color} strokeWidth="4"/><text x={p.x} y={Math.max(13, p.y - 12)} fill="white" textAnchor="middle" fontSize="11" fontWeight="800">{formatNumber(p.value, 1)}{suffix}</text><text x={p.x} y={height - 5} fill="#8d9aa3" textAnchor="middle" fontSize="9">{p.label}</text></g>)}
+      </svg></div>;
+    }
+
+    function ProgressView({ data }) {
+      const allExercises = DAYS.flatMap(d => d.exercises);
+      const [selected, setSelected] = useState(allExercises[0].id);
+      const history = [...data.history].sort((a,b) => new Date(a.date) - new Date(b.date));
+      const exercisePoints = history.filter(h => h.exercises?.some(e => e.id === selected && Number(e.weight) > 0)).slice(-8).map(h => {
+        const e = h.exercises.find(x => x.id === selected); return { value: Number(e.weight), label: new Date(h.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) };
+      });
+      const weekMap = history.reduce((acc, h) => { acc[h.weekKey] = (acc[h.weekKey] || 0) + Number(h.tonnage || 0); return acc; }, {});
+      const tonnagePoints = Object.entries(weekMap).sort(([a],[b]) => a.localeCompare(b)).slice(-8).map(([week, value]) => ({ value, label: week.slice(5).split('-').reverse().join('.') }));
+      const totalTonnage = history.reduce((a,h) => a + Number(h.tonnage || 0), 0);
+      const bestSession = Math.max(0, ...history.map(h => Number(h.tonnage || 0)));
+      return <div className="space-y-5">
+        <div><p className="text-xs font-black uppercase tracking-[.2em] text-cyan">История и аналитика</p><h1 className="mt-2 text-3xl font-black">Прогресс,<br/><span className="text-white/40">который видно.</span></h1></div>
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="p-3"><Icon name="calendar-check" className="text-neon"/><b className="mt-2 block text-xl">{history.length}</b><span className="text-[10px] text-muted">тренировок</span></Card>
+          <Card className="p-3"><Icon name="weight-hanging" className="text-cyan"/><b className="mt-2 block text-xl">{formatNumber(totalTonnage / 1000, 1)}</b><span className="text-[10px] text-muted">тонн всего</span></Card>
+          <Card className="p-3"><Icon name="trophy" className="text-amber-300"/><b className="mt-2 block text-xl">{formatNumber(bestSession)}</b><span className="text-[10px] text-muted">кг рекорд</span></Card>
+        </div>
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-neon">Рабочий вес</p><h2 className="mt-1 font-black">Динамика упражнения</h2></div><Icon name="chart-line" className="text-neon" /></div>
+          <select value={selected} onChange={e => setSelected(e.target.value)} className="mt-4 h-12 w-full rounded-2xl border border-line bg-[#0b0f11] px-4 text-sm font-bold outline-none focus:border-neon">{DAYS.map(day => <optgroup key={day.id} label={day.label}>{day.exercises.filter(e => e.kind !== 'bodyweight').map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}</optgroup>)}</select>
+          <div className="mt-4"><MiniLineChart points={exercisePoints} suffix="" /></div>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Тоннаж</p><h2 className="mt-1 font-black">Объём по неделям</h2></div><Icon name="chart-column" className="text-cyan" /></div>
+          <div className="mt-4"><MiniLineChart points={tonnagePoints} color="#3fd6ff" /></div>
+          <p className="mt-3 text-xs leading-relaxed text-muted">Для парных гантелей вес считается для обеих рук. Планки и упражнения без веса не входят в тоннаж.</p>
+        </Card>
+        <div>
+          <h2 className="mb-3 text-lg font-black">Последние тренировки</h2>
+          <div className="space-y-3">
+            {[...history].reverse().slice(0, 10).map(h => <Card key={h.id} className="flex items-center gap-4 p-4"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="check" /></div><div className="min-w-0 flex-1"><p className="truncate font-bold">{h.title}</p><p className="text-xs text-muted">{formatDate(h.date)} · {h.completedExercises} упражнений</p></div><div className="text-right"><b>{formatNumber(h.tonnage)}</b><span className="block text-[10px] text-muted">кг</span></div></Card>)}
+            {!history.length && <Card className="p-6 text-center text-sm text-muted">Заверши все упражнения дня — запись появится здесь автоматически.</Card>}
+          </div>
+        </div>
+      </div>;
+    }
+
+    function parseFirebaseConfig(raw) {
+      let text = String(raw || '').trim();
+      const start = text.indexOf('{'), end = text.lastIndexOf('}');
+      if (start >= 0 && end > start) text = text.slice(start, end + 1);
+      text = text.replace(/([{,]\s*)([A-Za-z_$][\w$]*)(\s*:)/g, '$1"$2"$3').replace(/,\s*}/g, '}');
+      const config = JSON.parse(text);
+      if (!config.apiKey || !config.projectId || !config.databaseURL) throw new Error('Нужны apiKey, projectId и databaseURL.');
+      return config;
+    }
+
+    function CloudModal({ open, onClose, current, onSave, onDisconnect, status, error }) {
+      const [raw, setRaw] = useState(current?.config ? JSON.stringify(current.config, null, 2) : '');
+      const [code, setCode] = useState(current?.syncCode || '');
+      const [localError, setLocalError] = useState('');
+      useEffect(() => { if (open) { setRaw(current?.config ? JSON.stringify(current.config, null, 2) : ''); setCode(current?.syncCode || ''); setLocalError(''); } }, [open, current]);
+      const generateCode = () => {
+        const bytes = new Uint8Array(16); crypto.getRandomValues(bytes);
+        setCode(Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''));
+      };
+      const save = () => {
+        try { const config = parseFirebaseConfig(raw); if (code.trim().length < 12) throw new Error('Код синхронизации — минимум 12 символов.'); onSave({ config, syncCode: code.trim() }); setLocalError(''); }
+        catch (e) { setLocalError(e.message || 'Проверь данные.'); }
+      };
+      return <Modal open={open} onClose={onClose} wide>
+        <p className="text-xs font-black uppercase tracking-[.18em] text-cyan">Realtime Database</p><h2 className="mt-2 pr-12 text-2xl font-black">Подключить облако</h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted">Создай проект Firebase, включи Realtime Database и вставь объект <b className="text-white">firebaseConfig</b>. Данные шифруются в браузере кодом синхронизации до отправки.</p>
+        <label className="mt-5 block"><span className="mb-2 block text-xs font-black uppercase tracking-wider text-muted">firebaseConfig</span><textarea value={raw} onChange={e => setRaw(e.target.value)} spellCheck="false" placeholder={'{\n  "apiKey": "...",\n  "databaseURL": "https://...firebaseio.com",\n  "projectId": "..."\n}'} className="h-52 w-full rounded-2xl border border-line bg-black/30 p-4 font-mono text-xs leading-relaxed outline-none focus:border-cyan" /></label>
+        <label className="mt-4 block"><span className="mb-2 block text-xs font-black uppercase tracking-wider text-muted">Код синхронизации</span><div className="flex gap-2"><input value={code} onChange={e => setCode(e.target.value)} placeholder="Один код на телефоне и компьютере" className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-black/30 px-4 text-sm outline-none focus:border-neon"/><button onClick={generateCode} className="h-14 rounded-2xl bg-white/8 px-4 font-bold text-neon">Создать</button></div><p className="mt-2 text-xs text-amber-200/75"><Icon name="key" className="mr-2"/>Сохрани код отдельно: без него облачную копию нельзя расшифровать.</p></label>
+        {(localError || error) && <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{localError || error}</div>}
+        <details className="mt-4 rounded-2xl border border-line bg-white/[.025] p-4 text-sm"><summary className="cursor-pointer font-bold text-cyan">Правила Firebase для зашифрованной базы</summary><p className="mt-3 text-xs leading-relaxed text-muted">В консоли Realtime Database → Rules вставь правила ниже. Путь к записи — хэш длинного кода, а содержимое зашифровано AES-GCM.</p><pre className="mt-3 overflow-x-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/70">{`{\n  "rules": {\n    "ironflow": {\n      "v1": {\n        "$syncHash": {\n          ".read": true,\n          ".write": true\n        }\n      }\n    }\n  }\n}`}</pre></details>
+        <div className="mt-5 flex gap-2"><button onClick={save} className="h-14 flex-1 rounded-2xl bg-neon font-black text-ink">{status === 'connecting' ? 'Подключение…' : 'Сохранить и подключить'}</button>{current && <button onClick={onDisconnect} className="h-14 rounded-2xl bg-red-400/10 px-4 font-bold text-red-300">Отключить</button>}</div>
+      </Modal>;
+    }
+
+    function ProfileView({ data, cloudStatus, openCloud, exportData, importData, resetData }) {
+      const fileRef = useRef(null);
+      return <div className="space-y-5">
+        <div><p className="text-xs font-black uppercase tracking-[.2em] text-neon">Профиль и настройки</p><h1 className="mt-2 text-3xl font-black">Твои данные.<br/><span className="text-white/40">Под твоим контролем.</span></h1></div>
+        <Card className="overflow-hidden p-5">
+          <div className="flex items-center gap-4"><div className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-neon to-cyan text-2xl text-ink"><Icon name="user" /></div><div><h2 className="text-xl font-black">Атлет IRON FLOW</h2><p className="text-sm text-muted">Цель: сила, мышечная масса и безопасная техника</p></div></div>
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">{[[data.profile.height,'см','Рост'],[data.profile.weight,'кг','Вес'],[data.profile.muscle,'кг','Мышцы'],[data.profile.fat,'%','Жир']].map(([v,u,l]) => <div key={l} className="rounded-2xl bg-black/20 p-3"><b className="text-xl">{v}</b><span className="ml-1 text-xs text-muted">{u}</span><span className="mt-1 block text-[10px] uppercase tracking-wider text-muted">{l}</span></div>)}</div>
+        </Card>
+        <Card className="border-amber-300/20 p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-300/10 text-amber-300"><Icon name="shield-heart" /></div><div><h2 className="font-black">Небольшой сколиоз</h2><p className="mt-2 text-sm leading-relaxed text-muted">Контролируй симметрию, используй опоры и избегай чрезмерных осевых нагрузок. Острая боль, онемение или прострел — повод остановиться и обратиться к врачу/физиотерапевту.</p></div></div></Card>
+        <Card className="p-5"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Синхронизация</p><h2 className="mt-1 font-black">{cloudStatus === 'active' ? 'Облако активно' : cloudStatus === 'connecting' ? 'Подключаем облако…' : 'Локальный режим'}</h2><p className="mt-1 text-xs text-muted">Локальная копия сохраняется всегда</p></div><button onClick={openCloud} className={`h-12 rounded-2xl px-4 font-black ${cloudStatus === 'active' ? 'bg-neon text-ink' : 'bg-white/8 text-cyan'}`}>{cloudStatus === 'active' ? 'Настроить' : 'Подключить'}</button></div></Card>
+        <Card className="standalone-hidden p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="mobile-screen-button" /></div><div><h2 className="font-black">Добавить на экран «Домой»</h2><div className="mt-2 space-y-2 text-sm leading-relaxed text-muted"><p><b className="text-white">iPhone:</b> открой в Safari → «Поделиться» → «На экран Домой».</p><p><b className="text-white">Android:</b> меню Chrome → «Установить приложение» или «Добавить на главный экран».</p></div></div></div></Card>
+        <Card className="p-5"><h2 className="font-black">Резервная копия</h2><p className="mt-1 text-sm text-muted">Экспортируй журнал в JSON или восстанови его из файла.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={exportData} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="download" className="mr-2 text-cyan"/>Экспорт</button><button onClick={() => fileRef.current?.click()} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="upload" className="mr-2 text-neon"/>Импорт</button></div><input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importData}/></Card>
+        <button onClick={resetData} className="h-14 w-full rounded-2xl border border-red-400/20 bg-red-400/[.06] font-bold text-red-300">Сбросить весь журнал</button>
+        <p className="pb-2 text-center text-xs text-muted">IRON FLOW v3 · данные принадлежат только тебе</p>
+      </div>;
+    }
+
+    function CompletionModal({ open, onClose, workout, tonnage, weeklyDone }) {
+      return <Modal open={open} onClose={onClose}>
+        <div className="text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-[1.8rem] bg-neon text-3xl text-ink shadow-glow"><Icon name="trophy" /></div><p className="mt-5 text-xs font-black uppercase tracking-[.2em] text-neon">Тренировка завершена</p><h2 className="mt-2 text-3xl font-black">Мощная работа!</h2><p className="mt-2 text-sm leading-relaxed text-muted">Ты выполнил «{workout?.title}» и сохранил результат в истории.</p></div>
+        <div className="mt-6 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-black/25 p-4 text-center"><b className="text-2xl">{formatNumber(tonnage)}</b><span className="mt-1 block text-xs text-muted">кг тоннаж</span></div><div className="rounded-2xl bg-black/25 p-4 text-center"><b className="text-2xl text-neon">{weeklyDone}/4</b><span className="mt-1 block text-xs text-muted">неделя</span></div></div>
+        <div className="mt-5"><div className="mb-2 flex justify-between text-xs"><span className="text-muted">Прогресс недели</span><b>{weeklyDone * 25}%</b></div><ProgressBar value={weeklyDone} max={4}/></div>
+        <div className="mt-5 rounded-2xl border border-cyan/15 bg-cyan/[.06] p-4 text-sm leading-relaxed text-white/75"><Icon name="heart" className="mr-2 text-cyan"/>Теперь 8–15 минут спокойного кардио, вода и белок. Восстановление — часть прогресса.</div>
+        <button onClick={onClose} className="mt-5 h-14 w-full rounded-2xl bg-neon font-black text-ink">Забрать победу</button>
+      </Modal>;
+    }
+
+    function App() {
+      const [data, setData] = useState(loadLocal);
+      const [tab, setTab] = useState('workout');
+      const initialDay = DAYS.find(d => d.weekday === (new Date().getDay() || 7)) || DAYS.find(d => d.weekday > (new Date().getDay() || 7)) || DAYS[0];
+      const [selectedDay, setSelectedDay] = useState(initialDay.id);
+      const [analysisOpen, setAnalysisOpen] = useState(false);
+      const [completionOpen, setCompletionOpen] = useState(false);
+      const [cloudOpen, setCloudOpen] = useState(false);
+      const [cloudSettings, setCloudSettings] = useState(() => { try { return JSON.parse(localStorage.getItem(CLOUD_KEY)); } catch { return null; } });
+      const [cloudStatus, setCloudStatus] = useState('local');
+      const [cloudError, setCloudError] = useState('');
+      const [timer, setTimer] = useState(null);
+      const [timerRunning, setTimerRunning] = useState(false);
+      const [timerDone, setTimerDone] = useState(false);
+      const weekKey = getWeekKey();
+      const dataRef = useRef(data);
+      const cloudRef = useRef(null);
+      const cloudKeyRef = useRef(null);
+      const cloudReadyRef = useRef(false);
+      const suppressCloudRef = useRef(false);
+      const cloudTimerRef = useRef(null);
+      const prevCompleteRef = useRef({});
+
+      const mutate = (updater) => setData(prev => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        if (next === prev) return prev;
+        return { ...next, updatedAt: Date.now() };
+      });
+
+      useEffect(() => { dataRef.current = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }, [data]);
+      useEffect(() => { if (data.protein.date !== todayKey()) mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: 0 } })); }, []);
+
+      useEffect(() => {
+        if (!timerRunning || timer == null) return;
+        if (timer <= 0) {
+          setTimerRunning(false); setTimerDone(true);
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioCtx();
+            [0, .22, .44].forEach(offset => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 720 + offset * 200; gain.gain.setValueAtTime(.15, ctx.currentTime + offset); gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + offset + .16); osc.start(ctx.currentTime + offset); osc.stop(ctx.currentTime + offset + .18); });
+          } catch {}
+          if (navigator.vibrate) navigator.vibrate([180, 100, 180]);
+          return;
+        }
+        const id = setTimeout(() => setTimer(v => Math.max(0, v - 1)), 1000);
+        return () => clearTimeout(id);
+      }, [timerRunning, timer]);
+
+      const startTimer = (seconds) => { setTimerDone(false); setTimer(seconds); setTimerRunning(true); };
+      const updateExercise = (dayId, exerciseId, patch) => mutate(prev => {
+        const weeks = { ...prev.weeks };
+        const week = { ...(weeks[weekKey] || {}) };
+        const day = { ...(week[dayId] || {}) };
+        const exercises = { ...(day.exercises || {}) };
+        const exercise = DAYS.find(d => d.id === dayId).exercises.find(e => e.id === exerciseId);
+        exercises[exerciseId] = { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false, ...(exercises[exerciseId] || {}), ...patch };
+        day.exercises = exercises; week[dayId] = day; weeks[weekKey] = week;
+        return { ...prev, weeks };
+      });
+      const addProtein = amount => mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: (prev.protein.date === todayKey() ? Number(prev.protein.grams || 0) : 0) + amount } }));
+      const resetProtein = () => mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: 0 } }));
+
+      const dayStats = useMemo(() => {
+        const result = {};
+        DAYS.forEach(day => {
+          const entries = data.weeks?.[weekKey]?.[day.id]?.exercises || {};
+          const allComplete = day.exercises.every(ex => entries[ex.id]?.completed);
+          const tonnage = day.exercises.reduce((sum, ex) => {
+            const e = entries[ex.id]; if (!e?.completed || !ex.multiplier) return sum;
+            return sum + Number(e.weight || 0) * (e.reps || []).reduce((a, r) => a + Number(r || 0), 0) * ex.multiplier;
+          }, 0);
+          result[day.id] = { allComplete, tonnage, entries };
+        });
+        return result;
+      }, [data.weeks, weekKey]);
+      const weeklyDone = DAYS.filter(d => dayStats[d.id]?.allComplete).length;
+
+      useEffect(() => {
+        const workout = DAYS.find(d => d.id === selectedDay);
+        const stats = dayStats[selectedDay];
+        if (!workout || !stats) return;
+        const key = `${weekKey}-${selectedDay}`;
+        const was = prevCompleteRef.current[key];
+        if (was === false && stats.allComplete) setCompletionOpen(true);
+        prevCompleteRef.current[key] = stats.allComplete;
+        if (!stats.allComplete) return;
+        setData(prev => {
+          const entries = prev.weeks?.[weekKey]?.[selectedDay]?.exercises || {};
+          const existing = prev.history.find(h => h.id === key);
+          const snapshot = workout.exercises.map(ex => {
+            const e = entries[ex.id] || {};
+            return { id: ex.id, name: ex.name, weight: Number(e.weight || 0), reps: e.reps || [], rpe: e.rpe || '', volume: ex.multiplier ? Number(e.weight || 0) * (e.reps || []).reduce((a,r) => a + Number(r || 0), 0) * ex.multiplier : 0 };
+          });
+          const record = { id: key, weekKey, workoutId: selectedDay, title: workout.title, date: existing?.date || new Date().toISOString(), tonnage: stats.tonnage, completedExercises: workout.exercises.length, exercises: snapshot };
+          if (existing && JSON.stringify({ ...existing, date: null }) === JSON.stringify({ ...record, date: null })) return prev;
+          const history = existing ? prev.history.map(h => h.id === key ? record : h) : [...prev.history, record];
+          return { ...prev, history, updatedAt: Date.now() };
+        });
+      }, [selectedDay, weekKey, dayStats[selectedDay]?.allComplete, JSON.stringify(dayStats[selectedDay]?.entries || {})]);
+
+      const bytesToBase64 = bytes => { let binary = ''; const step = 0x8000; for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, i + step)); return btoa(binary); };
+      const base64ToBytes = value => Uint8Array.from(atob(value), c => c.charCodeAt(0));
+      const hashText = async text => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))).map(b => b.toString(16).padStart(2, '0')).join('');
+      const deriveCloudKey = async (code, projectId) => {
+        const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: new TextEncoder().encode(`ironflow-v1:${projectId}`), iterations: 180000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+      };
+      const encryptState = async (state, key) => { const iv = crypto.getRandomValues(new Uint8Array(12)); const payload = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(state))); return { version: 1, updatedAt: state.updatedAt, iv: bytesToBase64(iv), payload: bytesToBase64(new Uint8Array(payload)) }; };
+      const decryptState = async (envelope, key) => { const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(envelope.payload)); return normalizeState(JSON.parse(new TextDecoder().decode(plain))); };
+
+      useEffect(() => {
+        let alive = true, valueHandler, connectionHandler, ref, connectionRef;
+        cloudReadyRef.current = false; cloudRef.current = null; cloudKeyRef.current = null;
+        if (!cloudSettings) { setCloudStatus('local'); setCloudError(''); return; }
+        if (!window.isSecureContext || !crypto.subtle) { setCloudStatus('local'); setCloudError('Облачное шифрование доступно через HTTPS или localhost. Локальные данные сохранены.'); return; }
+        setCloudStatus('connecting'); setCloudError('');
+        (async () => {
+          try {
+            const appName = `ironflow-${cloudSettings.config.projectId}`;
+            const app = firebase.apps.find(a => a.name === appName) || firebase.initializeApp(cloudSettings.config, appName);
+            const db = app.database();
+            const pathHash = await hashText(cloudSettings.syncCode);
+            const key = await deriveCloudKey(cloudSettings.syncCode, cloudSettings.config.projectId);
+            if (!alive) return;
+            ref = db.ref(`ironflow/v1/${pathHash}`); connectionRef = db.ref('.info/connected');
+            cloudRef.current = ref; cloudKeyRef.current = key;
+            connectionHandler = snap => { if (!alive) return; setCloudStatus(snap.val() === true ? 'active' : 'local'); };
+            valueHandler = async snap => {
+              if (!alive) return;
+              try {
+                const envelope = snap.val();
+                if (!envelope) {
+                  await ref.set(await encryptState(dataRef.current, key));
+                  cloudReadyRef.current = true; return;
+                }
+                const remote = await decryptState(envelope, key);
+                if (remote.updatedAt > dataRef.current.updatedAt) { suppressCloudRef.current = true; dataRef.current = remote; setData(remote); }
+                else if (remote.updatedAt < dataRef.current.updatedAt) await ref.set(await encryptState(dataRef.current, key));
+                cloudReadyRef.current = true;
+              } catch (e) { setCloudError('Не удалось расшифровать облако. Проверь код синхронизации.'); setCloudStatus('local'); }
+            };
+            connectionRef.on('value', connectionHandler); ref.on('value', valueHandler, err => { setCloudError(err.message || 'Firebase отклонил доступ. Проверь Rules.'); setCloudStatus('local'); });
+          } catch (e) { if (alive) { setCloudError(e.message || 'Не удалось подключить Firebase.'); setCloudStatus('local'); } }
+        })();
+        return () => { alive = false; if (ref && valueHandler) ref.off('value', valueHandler); if (connectionRef && connectionHandler) connectionRef.off('value', connectionHandler); if (cloudTimerRef.current) clearTimeout(cloudTimerRef.current); };
+      }, [cloudSettings]);
+
+      useEffect(() => {
+        if (suppressCloudRef.current) { suppressCloudRef.current = false; return; }
+        if (cloudStatus !== 'active' || !cloudReadyRef.current || !cloudRef.current || !cloudKeyRef.current) return;
+        clearTimeout(cloudTimerRef.current);
+        cloudTimerRef.current = setTimeout(async () => {
+          try { await cloudRef.current.set(await encryptState(dataRef.current, cloudKeyRef.current)); setCloudError(''); }
+          catch (e) { setCloudError('Изменения сохранены локально и будут отправлены после восстановления связи.'); setCloudStatus('local'); }
+        }, 650);
+        return () => clearTimeout(cloudTimerRef.current);
+      }, [data, cloudStatus]);
+
+      useEffect(() => {
+        const online = () => { if (cloudSettings) setCloudStatus('connecting'); };
+        const offline = () => setCloudStatus('local');
+        window.addEventListener('online', online); window.addEventListener('offline', offline);
+        return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offline); };
+      }, [cloudSettings]);
+
+      const saveCloud = settings => { localStorage.setItem(CLOUD_KEY, JSON.stringify(settings)); setCloudSettings(settings); setCloudOpen(false); };
+      const disconnectCloud = () => { localStorage.removeItem(CLOUD_KEY); setCloudSettings(null); setCloudStatus('local'); setCloudError(''); setCloudOpen(false); };
+      const exportData = () => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ironflow-backup-${todayKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
+      const importData = event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed = normalizeState(JSON.parse(reader.result)); mutate(parsed); alert('Резервная копия восстановлена.'); } catch { alert('Не удалось прочитать файл резервной копии.'); } }; reader.readAsText(file); event.target.value = ''; };
+      const resetData = () => { if (confirm('Удалить локальный журнал, историю и белок? Это действие нельзя отменить без резервной копии.')) { const clean = cloneDefault(); clean.updatedAt = Date.now(); setData(clean); } };
+      const openDay = id => { setSelectedDay(id); setTab('workout'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+      const selectedWorkout = DAYS.find(d => d.id === selectedDay);
+
+      const nav = [
+        { id: 'workout', label: 'Тренировка', icon: 'dumbbell' },
+        { id: 'plan', label: 'План', icon: 'calendar-days' },
+        { id: 'progress', label: 'Прогресс', icon: 'chart-line' },
+        { id: 'profile', label: 'Профиль', icon: 'user' }
+      ];
+
+      return <div className="min-h-dvh pb-32">
+        <header className="safe-top sticky top-0 z-40 border-b border-line glass">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+            <button onClick={() => { setTab('workout'); window.scrollTo({top:0,behavior:'smooth'}); }} className="flex items-center gap-3 text-left"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-neon text-ink shadow-glow"><Icon name="dumbbell" /></span><span><b className="block text-sm leading-none tracking-wide">IRON FLOW</b><small className="text-[10px] uppercase tracking-[.18em] text-muted">Train · Track · Grow</small></span></button>
+            <button aria-label={cloudStatus === 'active' ? 'Облако активно' : cloudStatus === 'connecting' ? 'Синхронизация облака' : 'Локальный режим. Подключить облако'} onClick={() => setCloudOpen(true)} className={`flex h-10 items-center gap-2 rounded-full border px-3 text-xs font-black ${cloudStatus === 'active' ? 'border-neon/25 bg-neon/10 text-neon' : cloudStatus === 'connecting' ? 'border-cyan/25 bg-cyan/10 text-cyan' : 'border-line bg-white/[.03] text-muted'}`}><span className={`h-2 w-2 rounded-full ${cloudStatus === 'active' ? 'bg-neon' : cloudStatus === 'connecting' ? 'animate-pulse bg-cyan' : 'bg-muted'}`}></span><span className="hidden sm:inline">{cloudStatus === 'active' ? 'Облако активно' : cloudStatus === 'connecting' ? 'Синхронизация' : 'Локальный режим'}</span><Icon name={cloudStatus === 'active' ? 'cloud-arrow-up' : 'hard-drive'} className="sm:hidden" /></button>
+          </div>
+          <TimerBar timer={timer} setTimer={setTimer} running={timerRunning} setRunning={setTimerRunning} done={timerDone} clearDone={() => setTimerDone(false)} />
+        </header>
+
+        <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+          {tab === 'workout' && <WorkoutView data={data} selectedDay={selectedDay} setSelectedDay={setSelectedDay} weekKey={weekKey} updateExercise={updateExercise} addProtein={addProtein} resetProtein={resetProtein} startTimer={startTimer} analysisOpen={analysisOpen} setAnalysisOpen={setAnalysisOpen} />}
+          {tab === 'plan' && <PlanView data={data} weekKey={weekKey} onOpenDay={openDay} />}
+          {tab === 'progress' && <ProgressView data={data} />}
+          {tab === 'profile' && <ProfileView data={data} cloudStatus={cloudStatus} openCloud={() => setCloudOpen(true)} exportData={exportData} importData={importData} resetData={resetData} />}
+        </main>
+
+        <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-line glass">
+          <div className="mx-auto grid max-w-lg grid-cols-4 px-2 pt-2">
+            {nav.map(item => <button key={item.id} onClick={() => { setTab(item.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`min-h-[58px] rounded-2xl px-1 text-center transition ${tab === item.id ? 'text-neon' : 'text-muted'}`}><Icon name={item.icon} className={`block text-lg ${tab === item.id ? 'scale-110' : ''}`} /><span className="mt-1 block text-[10px] font-black">{item.label}</span></button>)}
+          </div>
+        </nav>
+
+        <CloudModal open={cloudOpen} onClose={() => setCloudOpen(false)} current={cloudSettings} onSave={saveCloud} onDisconnect={disconnectCloud} status={cloudStatus} error={cloudError} />
+        <CompletionModal open={completionOpen} onClose={() => setCompletionOpen(false)} workout={selectedWorkout} tonnage={dayStats[selectedDay]?.tonnage || 0} weeklyDone={weeklyDone} />
+      </div>;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
