@@ -153,10 +153,11 @@
     };
 
     const DEFAULT_STATE = {
-      schema: 3,
+      schema: 4,
       updatedAt: Date.now(),
       profile: { height: 188, weight: 79.6, muscle: 34.6, fat: 19, proteinGoal: 120 },
       protein: { date: todayKey(), grams: 0 },
+      health: { lastSyncAt: null, lastImportId: '', latest: {}, history: [] },
       weeks: {},
       history: []
     };
@@ -170,6 +171,12 @@
         ...value,
         profile: { ...base.profile, ...(value.profile || {}) },
         protein: { ...base.protein, ...(value.protein || {}) },
+        health: {
+          ...base.health,
+          ...(value.health || {}),
+          latest: value.health?.latest && typeof value.health.latest === 'object' ? value.health.latest : {},
+          history: Array.isArray(value.health?.history) ? value.health.history.slice(-90) : []
+        },
         weeks: value.weeks && typeof value.weeks === 'object' ? value.weeks : {},
         history: Array.isArray(value.history) ? value.history : []
       };
@@ -182,7 +189,71 @@
 
     const formatNumber = (n, digits = 0) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: digits }).format(Number(n || 0));
     const formatDate = (date) => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date));
+    const formatDateTime = (date) => date ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(date)) : 'ещё не синхронизировалось';
     const escapeHtml = (s) => String(s).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
+
+    const healthNumber = value => {
+      if (value == null || value === '') return null;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      const match = String(value).replace(',', '.').match(/-?\d+(?:\.\d+)?/);
+      if (!match) return null;
+      const parsed = Number(match[0]);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const normalizeHealthPayload = raw => {
+      const value = raw?.data && typeof raw.data === 'object' ? raw.data : raw;
+      if (!value || typeof value !== 'object') return null;
+      const sourceTimestamp = value.timestamp || value.date || new Date().toISOString();
+      const parsedTimestamp = new Date(sourceTimestamp);
+      const timestamp = Number.isNaN(parsedTimestamp.getTime()) ? new Date().toISOString() : parsedTimestamp.toISOString();
+      let fat = healthNumber(value.fat ?? value.bodyFat);
+      if (fat != null && fat > 0 && fat <= 1) fat *= 100;
+      const entry = {
+        id: String(value.id || `${timestamp}-${value.steps ?? ''}-${value.weight ?? ''}`),
+        timestamp,
+        weight: healthNumber(value.weight),
+        fat,
+        muscle: healthNumber(value.muscle),
+        steps: healthNumber(value.steps),
+        activeEnergy: healthNumber(value.activeEnergy ?? value.calories),
+        restingHeartRate: healthNumber(value.restingHeartRate ?? value.heartRate),
+        sleepHours: healthNumber(value.sleepHours ?? value.sleep),
+        workoutMinutes: healthNumber(value.workoutMinutes ?? value.workout)
+      };
+      const metricKeys = ['weight', 'fat', 'muscle', 'steps', 'activeEnergy', 'restingHeartRate', 'sleepHours', 'workoutMinutes'];
+      if (!metricKeys.some(key => entry[key] != null && entry[key] >= 0)) return null;
+      entry.steps = entry.steps == null ? null : Math.round(entry.steps);
+      return entry;
+    };
+
+    const applyHealthPayload = (state, raw) => {
+      const entry = normalizeHealthPayload(raw);
+      if (!entry || state.health?.lastImportId === entry.id) return state;
+      const previousHealth = state.health || {};
+      const previousHistory = Array.isArray(previousHealth.history) ? previousHealth.history : [];
+      const history = [...previousHistory.filter(item => item.id !== entry.id), entry]
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        .slice(-90);
+      return {
+        ...state,
+        schema: 4,
+        updatedAt: Date.now(),
+        profile: {
+          ...state.profile,
+          ...(entry.weight != null && entry.weight > 0 ? { weight: Number(entry.weight.toFixed(2)) } : {}),
+          ...(entry.fat != null && entry.fat > 0 ? { fat: Number(entry.fat.toFixed(1)) } : {}),
+          ...(entry.muscle != null && entry.muscle > 0 ? { muscle: Number(entry.muscle.toFixed(2)) } : {})
+        },
+        health: {
+          ...previousHealth,
+          lastSyncAt: entry.timestamp,
+          lastImportId: entry.id,
+          latest: { ...(previousHealth.latest || {}), ...Object.fromEntries(Object.entries(entry).filter(([, item]) => item != null)) },
+          history
+        }
+      };
+    };
 
     function Icon({ name, className = '' }) {
       return <i aria-hidden="true" className={`fa-solid fa-${name} ${className}`}></i>;
@@ -582,13 +653,93 @@
         <label className="mt-5 block"><span className="mb-2 block text-xs font-black uppercase tracking-wider text-muted">firebaseConfig</span><textarea value={raw} onChange={e => setRaw(e.target.value)} spellCheck="false" placeholder={'{\n  "apiKey": "...",\n  "databaseURL": "https://...firebaseio.com",\n  "projectId": "..."\n}'} className="h-52 w-full rounded-2xl border border-line bg-black/30 p-4 font-mono text-xs leading-relaxed outline-none focus:border-cyan" /></label>
         <label className="mt-4 block"><span className="mb-2 block text-xs font-black uppercase tracking-wider text-muted">Код синхронизации</span><div className="flex gap-2"><input value={code} onChange={e => setCode(e.target.value)} placeholder="Один код на телефоне и компьютере" className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-black/30 px-4 text-sm outline-none focus:border-neon"/><button onClick={generateCode} className="h-14 rounded-2xl bg-white/8 px-4 font-bold text-neon">Создать</button></div><p className="mt-2 text-xs text-amber-200/75"><Icon name="key" className="mr-2"/>Сохрани код отдельно: без него облачную копию нельзя расшифровать.</p></label>
         {(localError || error) && <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{localError || error}</div>}
-        <details className="mt-4 rounded-2xl border border-line bg-white/[.025] p-4 text-sm"><summary className="cursor-pointer font-bold text-cyan">Правила Firebase для зашифрованной базы</summary><p className="mt-3 text-xs leading-relaxed text-muted">В консоли Realtime Database → Rules вставь правила ниже. Путь к записи — хэш длинного кода, а содержимое зашифровано AES-GCM.</p><pre className="mt-3 overflow-x-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/70">{`{\n  "rules": {\n    "ironflow": {\n      "v1": {\n        "$syncHash": {\n          ".read": true,\n          ".write": true\n        }\n      }\n    }\n  }\n}`}</pre></details>
+        <details className="mt-4 rounded-2xl border border-line bg-white/[.025] p-4 text-sm"><summary className="cursor-pointer font-bold text-cyan">Правила Firebase для облака и Apple Health</summary><p className="mt-3 text-xs leading-relaxed text-muted">В консоли Realtime Database → Rules вставь правила ниже. Основной журнал шифруется AES-GCM; временный пакет Apple Health доступен только по секретному хэшу и удаляется после импорта.</p><pre className="mt-3 overflow-x-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/70">{`{\n  "rules": {\n    "ironflow": {\n      "v1": {\n        "$syncHash": {\n          ".read": true,\n          ".write": true\n        }\n      }\n    },\n    "ironflowHealth": {\n      "v1": {\n        "$syncHash": {\n          ".read": true,\n          ".write": true\n        }\n      }\n    }\n  }\n}`}</pre></details>
         <div className="mt-5 flex gap-2"><button onClick={save} className="h-14 flex-1 rounded-2xl bg-neon font-black text-ink">{status === 'connecting' ? 'Подключение…' : 'Сохранить и подключить'}</button>{current && <button onClick={onDisconnect} className="h-14 rounded-2xl bg-red-400/10 px-4 font-bold text-red-300">Отключить</button>}</div>
       </Modal>;
     }
 
-    function ProfileView({ data, cloudStatus, openCloud, exportData, importData, resetData }) {
+    function HealthModal({ open, onClose, importUrl, data, error }) {
+      const [copied, setCopied] = useState('');
+      useEffect(() => { if (open) setCopied(''); }, [open]);
+      const copy = async (value, label) => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(label);
+          setTimeout(() => setCopied(''), 1800);
+        } catch {
+          prompt('Скопируй текст:', value);
+        }
+      };
+      const rules = `{
+  "rules": {
+    "ironflow": {
+      "v1": {
+        "$syncHash": { ".read": true, ".write": true }
+      }
+    },
+    "ironflowHealth": {
+      "v1": {
+        "$syncHash": { ".read": true, ".write": true }
+      }
+    }
+  }
+}`;
+      const sample = `{
+  "id": "Текущая дата",
+  "timestamp": "Текущая дата",
+  "weight": "Вес",
+  "fat": "Процент жира",
+  "muscle": "Скелетные мышцы — только если источник отдаёт именно этот показатель",
+  "steps": "Сумма шагов за сегодня",
+  "activeEnergy": "Активная энергия за сегодня",
+  "restingHeartRate": "Последний пульс в покое",
+  "sleepHours": "Продолжительность сна в часах",
+  "workoutMinutes": "Длительность тренировок в минутах"
+}`;
+      const latest = data.health?.latest || {};
+      return <Modal open={open} onClose={onClose} wide>
+        <p className="text-xs font-black uppercase tracking-[.18em] text-neon">iPhone · Команды · Здоровье</p>
+        <h2 className="mt-2 pr-12 text-2xl font-black">Подключить Apple Health</h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted">Команда на iPhone отправляет один временный пакет в Firebase. Iron Flow забирает его, добавляет в зашифрованный журнал и удаляет пакет из входящей папки.</p>
+        {error && <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-3 text-sm leading-relaxed text-amber-100"><Icon name="triangle-exclamation" className="mr-2"/>{error}</div>}
+
+        {data.health?.lastSyncAt && <div className="mt-5 rounded-2xl border border-neon/20 bg-neon/[.06] p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-neon text-ink"><Icon name="heart-pulse" /></span><div><b className="block">Последний импорт получен</b><span className="text-xs text-muted">{formatDateTime(data.health.lastSyncAt)}</span></div></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{[
+          ['steps', 'Шаги', ''], ['activeEnergy', 'Активность', 'ккал'], ['restingHeartRate', 'Пульс покоя', 'уд/мин'], ['sleepHours', 'Сон', 'ч']
+        ].map(([key, label, unit]) => <div key={key} className="rounded-xl bg-black/20 p-3"><b>{latest[key] == null ? '—' : formatNumber(latest[key], key === 'sleepHours' ? 1 : 0)}</b>{unit && <span className="ml-1 text-[10px] text-muted">{unit}</span>}<span className="mt-1 block text-[10px] uppercase text-muted">{label}</span></div>)}</div></div>}
+
+        <div className="mt-5 rounded-2xl border border-line bg-black/20 p-4">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Шаг 1</p><h3 className="mt-1 font-black">Обнови Firebase Rules</h3></div><button onClick={() => copy(rules, 'rules')} className="h-11 rounded-xl bg-white/8 px-4 text-sm font-bold text-cyan">{copied === 'rules' ? 'Скопировано' : 'Копировать'}</button></div>
+          <p className="mt-2 text-xs leading-relaxed text-muted">Firebase Console → Realtime Database → Rules → замени правила → Publish. Новая ветка разрешает iPhone положить временный пакет по секретному адресу.</p>
+          <pre className="mt-3 max-h-48 overflow-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/70">{rules}</pre>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-line bg-black/20 p-4">
+          <p className="text-xs font-black uppercase tracking-wider text-neon">Шаг 2</p><h3 className="mt-1 font-black">Скопируй адрес импорта</h3>
+          {importUrl ? <><div className="mt-3 break-all rounded-xl border border-neon/15 bg-neon/[.04] p-3 font-mono text-[11px] text-white/75">{importUrl}</div><button onClick={() => copy(importUrl, 'url')} className="mt-3 h-12 w-full rounded-2xl bg-neon font-black text-ink">{copied === 'url' ? 'Адрес скопирован' : 'Копировать секретный адрес'}</button></> : <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100">Сначала подключи Firebase и дождись статуса «Облако активно».</div>}
+          <p className="mt-2 text-xs leading-relaxed text-amber-100/70"><Icon name="lock" className="mr-2"/>Не публикуй этот адрес: он работает как пароль для загрузки показателей.</p>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-line bg-black/20 p-4">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Шаг 3</p><h3 className="mt-1 font-black">Создай команду на iPhone</h3></div>{importUrl && <a href="shortcuts://create-shortcut" className="grid h-11 place-items-center rounded-xl bg-cyan px-4 text-sm font-black text-ink">Открыть</a>}</div>
+          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/75">
+            <li><b className="text-white">1.</b> В «Командах» нажми <b className="text-white">+</b> и назови команду «IRON FLOW Health».</li>
+            <li><b className="text-white">2.</b> Для каждого нужного показателя добавь «Найти образцы Здоровья» и «Получить сведения об образцах Здоровья». Для веса, жира и пульса выбери самый новый результат; для шагов и активной энергии за сегодня — сумму.</li>
+            <li><b className="text-white">3.</b> Добавь действие <b className="text-white">URL</b> и вставь секретный адрес выше.</li>
+            <li><b className="text-white">4.</b> Добавь «Получить содержимое URL»: метод <b className="text-white">PUT</b>, тело запроса <b className="text-white">JSON</b>. Используй названия полей из примера ниже и подставь переменные из «Здоровья».</li>
+            <li><b className="text-white">5.</b> Запусти команду и разреши доступ к выбранным данным. Затем открой Iron Flow — импорт появится в профиле.</li>
+          </ol>
+          <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-muted">Необязательные поля можно не добавлять.</span><button onClick={() => copy(sample, 'sample')} className="h-10 rounded-xl bg-white/8 px-3 text-xs font-bold text-cyan">{copied === 'sample' ? 'Скопировано' : 'Поля JSON'}</button></div>
+          <pre className="mt-3 max-h-56 overflow-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/70">{sample}</pre>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-4 text-xs leading-relaxed text-muted"><Icon name="circle-info" className="mr-2 text-cyan"/>Автоматизацию можно добавить после успешного ручного запуска: «Команды» → «Автоматизация» → «Время суток» → ежедневно → «Выполнить немедленно» → запустить «IRON FLOW Health».</div>
+        <button onClick={onClose} className="mt-5 h-14 w-full rounded-2xl bg-white/8 font-black">Готово</button>
+      </Modal>;
+    }
+
+    function ProfileView({ data, cloudStatus, openCloud, openHealth, exportData, importData, resetData }) {
       const fileRef = useRef(null);
+      const latestHealth = data.health?.latest || {};
       return <div className="space-y-5">
         <div><p className="text-xs font-black uppercase tracking-[.2em] text-neon">Профиль и настройки</p><h1 className="mt-2 text-3xl font-black">Твои данные.<br/><span className="text-white/40">Под твоим контролем.</span></h1></div>
         <Card className="overflow-hidden p-5">
@@ -597,10 +748,16 @@
         </Card>
         <Card className="border-amber-300/20 p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-300/10 text-amber-300"><Icon name="shield-heart" /></div><div><h2 className="font-black">Небольшой сколиоз</h2><p className="mt-2 text-sm leading-relaxed text-muted">Контролируй симметрию, используй опоры и избегай чрезмерных осевых нагрузок. Острая боль, онемение или прострел — повод остановиться и обратиться к врачу/физиотерапевту.</p></div></div></Card>
         <Card className="p-5"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Синхронизация</p><h2 className="mt-1 font-black">{cloudStatus === 'active' ? 'Облако активно' : cloudStatus === 'connecting' ? 'Подключаем облако…' : 'Локальный режим'}</h2><p className="mt-1 text-xs text-muted">Локальная копия сохраняется всегда</p></div><button onClick={openCloud} className={`h-12 rounded-2xl px-4 font-black ${cloudStatus === 'active' ? 'bg-neon text-ink' : 'bg-white/8 text-cyan'}`}>{cloudStatus === 'active' ? 'Настроить' : 'Подключить'}</button></div></Card>
+        <Card className="overflow-hidden border-neon/20 p-5">
+          <div className="flex items-center justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-neon to-cyan text-ink"><Icon name="heart-pulse" /></div><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wider text-neon">Apple Health</p><h2 className="truncate font-black">{data.health?.lastSyncAt ? 'Данные подключены' : 'Импорт с iPhone'}</h2><p className="mt-1 text-xs text-muted">{data.health?.lastSyncAt ? `Последний импорт: ${formatDateTime(data.health.lastSyncAt)}` : 'Через приложение «Команды»'}</p></div></div><button onClick={openHealth} className="h-12 shrink-0 rounded-2xl bg-white/8 px-4 font-black text-cyan">{data.health?.lastSyncAt ? 'Открыть' : 'Настроить'}</button></div>
+          {data.health?.lastSyncAt && <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{[
+            [latestHealth.steps, '', 'Шаги'], [latestHealth.activeEnergy, 'ккал', 'Активность'], [latestHealth.restingHeartRate, 'уд/мин', 'Пульс покоя'], [latestHealth.sleepHours, 'ч', 'Сон']
+          ].map(([value, unit, label]) => <div key={label} className="rounded-2xl bg-black/20 p-3"><b className="text-lg">{value == null ? '—' : formatNumber(value, label === 'Сон' ? 1 : 0)}</b>{unit && <span className="ml-1 text-[10px] text-muted">{unit}</span>}<span className="mt-1 block text-[10px] uppercase tracking-wider text-muted">{label}</span></div>)}</div>}
+        </Card>
         <Card className="standalone-hidden p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="mobile-screen-button" /></div><div><h2 className="font-black">Добавить на экран «Домой»</h2><div className="mt-2 space-y-2 text-sm leading-relaxed text-muted"><p><b className="text-white">iPhone:</b> открой в Safari → «Поделиться» → «На экран Домой».</p><p><b className="text-white">Android:</b> меню Chrome → «Установить приложение» или «Добавить на главный экран».</p></div></div></div></Card>
         <Card className="p-5"><h2 className="font-black">Резервная копия</h2><p className="mt-1 text-sm text-muted">Экспортируй журнал в JSON или восстанови его из файла.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={exportData} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="download" className="mr-2 text-cyan"/>Экспорт</button><button onClick={() => fileRef.current?.click()} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="upload" className="mr-2 text-neon"/>Импорт</button></div><input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importData}/></Card>
         <button onClick={resetData} className="h-14 w-full rounded-2xl border border-red-400/20 bg-red-400/[.06] font-bold text-red-300">Сбросить весь журнал</button>
-        <p className="pb-2 text-center text-xs text-muted">IRON FLOW v3 · данные принадлежат только тебе</p>
+        <p className="pb-2 text-center text-xs text-muted">IRON FLOW v4 · данные принадлежат только тебе</p>
       </div>;
     }
 
@@ -622,9 +779,12 @@
       const [analysisOpen, setAnalysisOpen] = useState(false);
       const [completionOpen, setCompletionOpen] = useState(false);
       const [cloudOpen, setCloudOpen] = useState(false);
+      const [healthOpen, setHealthOpen] = useState(false);
       const [cloudSettings, setCloudSettings] = useState(() => { try { return JSON.parse(localStorage.getItem(CLOUD_KEY)); } catch { return null; } });
       const [cloudStatus, setCloudStatus] = useState('local');
       const [cloudError, setCloudError] = useState('');
+      const [healthError, setHealthError] = useState('');
+      const [healthImportUrl, setHealthImportUrl] = useState('');
       const [timer, setTimer] = useState(null);
       const [timerRunning, setTimerRunning] = useState(false);
       const [timerDone, setTimerDone] = useState(false);
@@ -725,8 +885,9 @@
       const decryptState = async (envelope, key) => { const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(envelope.payload)); return normalizeState(JSON.parse(new TextDecoder().decode(plain))); };
 
       useEffect(() => {
-        let alive = true, valueHandler, connectionHandler, ref, connectionRef;
+        let alive = true, valueHandler, connectionHandler, healthHandler, ref, connectionRef, healthRef, healthListening = false;
         cloudReadyRef.current = false; cloudRef.current = null; cloudKeyRef.current = null;
+        setHealthImportUrl(''); setHealthError('');
         if (!cloudSettings) { setCloudStatus('local'); setCloudError(''); return; }
         if (!window.isSecureContext || !crypto.subtle) { setCloudStatus('local'); setCloudError('Облачное шифрование доступно через HTTPS или localhost. Локальные данные сохранены.'); return; }
         setCloudStatus('connecting'); setCloudError('');
@@ -738,27 +899,55 @@
             const pathHash = await hashText(cloudSettings.syncCode);
             const key = await deriveCloudKey(cloudSettings.syncCode, cloudSettings.config.projectId);
             if (!alive) return;
-            ref = db.ref(`ironflow/v1/${pathHash}`); connectionRef = db.ref('.info/connected');
+            const databaseRoot = String(cloudSettings.config.databaseURL || '').replace(/\/$/, '');
+            setHealthImportUrl(`${databaseRoot}/ironflowHealth/v1/${pathHash}.json`);
+            ref = db.ref(`ironflow/v1/${pathHash}`); healthRef = db.ref(`ironflowHealth/v1/${pathHash}`); connectionRef = db.ref('.info/connected');
             cloudRef.current = ref; cloudKeyRef.current = key;
             connectionHandler = snap => { if (!alive) return; setCloudStatus(snap.val() === true ? 'active' : 'local'); };
+            const startHealthInbox = () => {
+              if (healthListening || !alive) return;
+              healthListening = true;
+              healthHandler = async snap => {
+                if (!alive || !snap.exists()) return;
+                try {
+                  const raw = snap.val();
+                  if (!normalizeHealthPayload(raw)) {
+                    await healthRef.remove();
+                    setHealthError('Пакет получен, но в нём нет распознаваемых показателей. Проверь названия полей JSON.');
+                    return;
+                  }
+                  const next = applyHealthPayload(dataRef.current, raw);
+                  if (next !== dataRef.current) {
+                    dataRef.current = next;
+                    setData(next);
+                  }
+                  await healthRef.remove();
+                  setHealthError('');
+                } catch (e) {
+                  setHealthError('Не удалось импортировать пакет Apple Health. Проверь Firebase Rules и повтори запуск команды.');
+                }
+              };
+              healthRef.on('value', healthHandler, () => setHealthError('Firebase не разрешил читать входящие данные. Обнови Rules из инструкции Apple Health.'));
+            };
             valueHandler = async snap => {
               if (!alive) return;
               try {
                 const envelope = snap.val();
                 if (!envelope) {
                   await ref.set(await encryptState(dataRef.current, key));
-                  cloudReadyRef.current = true; return;
+                  cloudReadyRef.current = true; startHealthInbox(); return;
                 }
                 const remote = await decryptState(envelope, key);
                 if (remote.updatedAt > dataRef.current.updatedAt) { suppressCloudRef.current = true; dataRef.current = remote; setData(remote); }
                 else if (remote.updatedAt < dataRef.current.updatedAt) await ref.set(await encryptState(dataRef.current, key));
                 cloudReadyRef.current = true;
+                startHealthInbox();
               } catch (e) { setCloudError('Не удалось расшифровать облако. Проверь код синхронизации.'); setCloudStatus('local'); }
             };
             connectionRef.on('value', connectionHandler); ref.on('value', valueHandler, err => { setCloudError(err.message || 'Firebase отклонил доступ. Проверь Rules.'); setCloudStatus('local'); });
           } catch (e) { if (alive) { setCloudError(e.message || 'Не удалось подключить Firebase.'); setCloudStatus('local'); } }
         })();
-        return () => { alive = false; if (ref && valueHandler) ref.off('value', valueHandler); if (connectionRef && connectionHandler) connectionRef.off('value', connectionHandler); if (cloudTimerRef.current) clearTimeout(cloudTimerRef.current); };
+        return () => { alive = false; if (ref && valueHandler) ref.off('value', valueHandler); if (healthRef && healthHandler) healthRef.off('value', healthHandler); if (connectionRef && connectionHandler) connectionRef.off('value', connectionHandler); if (cloudTimerRef.current) clearTimeout(cloudTimerRef.current); };
       }, [cloudSettings]);
 
       useEffect(() => {
@@ -780,7 +969,7 @@
       }, [cloudSettings]);
 
       const saveCloud = settings => { localStorage.setItem(CLOUD_KEY, JSON.stringify(settings)); setCloudSettings(settings); setCloudOpen(false); };
-      const disconnectCloud = () => { localStorage.removeItem(CLOUD_KEY); setCloudSettings(null); setCloudStatus('local'); setCloudError(''); setCloudOpen(false); };
+      const disconnectCloud = () => { localStorage.removeItem(CLOUD_KEY); setCloudSettings(null); setCloudStatus('local'); setCloudError(''); setHealthImportUrl(''); setHealthError(''); setCloudOpen(false); };
       const exportData = () => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ironflow-backup-${todayKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
       const importData = event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed = normalizeState(JSON.parse(reader.result)); mutate(parsed); alert('Резервная копия восстановлена.'); } catch { alert('Не удалось прочитать файл резервной копии.'); } }; reader.readAsText(file); event.target.value = ''; };
       const resetData = () => { if (confirm('Удалить локальный журнал, историю и белок? Это действие нельзя отменить без резервной копии.')) { const clean = cloneDefault(); clean.updatedAt = Date.now(); setData(clean); } };
@@ -807,7 +996,7 @@
           {tab === 'workout' && <WorkoutView data={data} selectedDay={selectedDay} setSelectedDay={setSelectedDay} weekKey={weekKey} updateExercise={updateExercise} addProtein={addProtein} resetProtein={resetProtein} startTimer={startTimer} analysisOpen={analysisOpen} setAnalysisOpen={setAnalysisOpen} />}
           {tab === 'plan' && <PlanView data={data} weekKey={weekKey} onOpenDay={openDay} />}
           {tab === 'progress' && <ProgressView data={data} />}
-          {tab === 'profile' && <ProfileView data={data} cloudStatus={cloudStatus} openCloud={() => setCloudOpen(true)} exportData={exportData} importData={importData} resetData={resetData} />}
+          {tab === 'profile' && <ProfileView data={data} cloudStatus={cloudStatus} openCloud={() => setCloudOpen(true)} openHealth={() => setHealthOpen(true)} exportData={exportData} importData={importData} resetData={resetData} />}
         </main>
 
         <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-line glass">
@@ -817,6 +1006,7 @@
         </nav>
 
         <CloudModal open={cloudOpen} onClose={() => setCloudOpen(false)} current={cloudSettings} onSave={saveCloud} onDisconnect={disconnectCloud} status={cloudStatus} error={cloudError} />
+        <HealthModal open={healthOpen} onClose={() => setHealthOpen(false)} importUrl={healthImportUrl} data={data} error={healthError} />
         <CompletionModal open={completionOpen} onClose={() => setCompletionOpen(false)} workout={selectedWorkout} tonnage={dayStats[selectedDay]?.tonnage || 0} weeklyDone={weeklyDone} />
       </div>;
     }
