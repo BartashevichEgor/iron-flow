@@ -59,6 +59,7 @@
 
     const STORAGE_KEY = 'ironflow_state_v3';
     const CLOUD_KEY = 'ironflow_cloud_v1';
+    const RECOVERY_KEY = 'ironflow_recovery_v1';
     const DAYS = [
       {
         id: 'mon', weekday: 1, short: 'ПН', label: 'Понедельник', title: 'Грудь + Трицепс + Пресс', accent: 'neon',
@@ -153,7 +154,7 @@
     };
 
     const DEFAULT_STATE = {
-      schema: 4,
+      schema: 5,
       updatedAt: Date.now(),
       profile: { height: 188, weight: 79.6, muscle: 34.6, fat: 19, proteinGoal: 120 },
       protein: { date: todayKey(), grams: 0 },
@@ -182,9 +183,196 @@
       };
     };
 
+    const safeTime = value => {
+      const parsed = typeof value === 'number' ? value : new Date(value || 0).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const exerciseScore = entry => {
+      if (!entry || typeof entry !== 'object') return -1;
+      return (entry.completed ? 100 : 0)
+        + (entry.rpe ? 12 : 0)
+        + (entry.weight !== '' && entry.weight != null ? 8 : 0)
+        + (Array.isArray(entry.reps) ? entry.reps.filter(value => value !== '' && value != null).length * 3 : 0)
+        + (entry.mode ? 4 : 0)
+        + (entry.minutes !== '' && entry.minutes != null ? 4 : 0);
+    };
+
+    const mergeExercise = (localEntry, remoteEntry, localFallback = 0, remoteFallback = 0) => {
+      if (!localEntry) return remoteEntry ? { ...remoteEntry } : localEntry;
+      if (!remoteEntry) return { ...localEntry };
+      const localTime = safeTime(localEntry._updatedAt);
+      const remoteTime = safeTime(remoteEntry._updatedAt);
+      if ((localTime || remoteTime) && localTime !== remoteTime) return { ...(localTime > remoteTime ? remoteEntry : localEntry), ...(localTime > remoteTime ? localEntry : remoteEntry) };
+      const localScore = exerciseScore(localEntry);
+      const remoteScore = exerciseScore(remoteEntry);
+      if (localScore !== remoteScore) return { ...(localScore > remoteScore ? remoteEntry : localEntry), ...(localScore > remoteScore ? localEntry : remoteEntry) };
+      const localWins = safeTime(localFallback) >= safeTime(remoteFallback);
+      return { ...(localWins ? remoteEntry : localEntry), ...(localWins ? localEntry : remoteEntry) };
+    };
+
+    const mergeWeeks = (localWeeks, remoteWeeks, localUpdatedAt = 0, remoteUpdatedAt = 0) => {
+      const result = {};
+      const weekKeys = [...new Set([...Object.keys(localWeeks || {}), ...Object.keys(remoteWeeks || {})])].sort();
+      weekKeys.forEach(weekKey => {
+        const localWeek = localWeeks?.[weekKey] || {};
+        const remoteWeek = remoteWeeks?.[weekKey] || {};
+        const mergedWeek = {};
+        [...new Set([...Object.keys(localWeek), ...Object.keys(remoteWeek)])].sort().forEach(dayId => {
+          const localDay = localWeek[dayId] || {};
+          const remoteDay = remoteWeek[dayId] || {};
+          const exercises = {};
+          [...new Set([...Object.keys(localDay.exercises || {}), ...Object.keys(remoteDay.exercises || {})])].sort().forEach(exerciseId => {
+            exercises[exerciseId] = mergeExercise(
+              localDay.exercises?.[exerciseId],
+              remoteDay.exercises?.[exerciseId],
+              localDay.updatedAt || localUpdatedAt,
+              remoteDay.updatedAt || remoteUpdatedAt
+            );
+          });
+          const localDayIsNewer = safeTime(localDay.updatedAt || localUpdatedAt) >= safeTime(remoteDay.updatedAt || remoteUpdatedAt);
+          mergedWeek[dayId] = {
+            ...(localDayIsNewer ? remoteDay : localDay),
+            ...(localDayIsNewer ? localDay : remoteDay),
+            updatedAt: Math.max(safeTime(localDay.updatedAt), safeTime(remoteDay.updatedAt)),
+            exercises
+          };
+        });
+        result[weekKey] = mergedWeek;
+      });
+      return result;
+    };
+
+    const historyScore = record => Number(record?.completedExercises || 0) * 1000 + Number(record?.tonnage || 0) + (record?.exercises?.length || 0) * 10;
+    const mergeHistory = (localHistory, remoteHistory) => {
+      const records = new Map();
+      [...(localHistory || []), ...(remoteHistory || [])].forEach(record => {
+        if (!record?.id) return;
+        const existing = records.get(record.id);
+        if (!existing) { records.set(record.id, { ...record }); return; }
+        const existingTime = safeTime(existing.updatedAt);
+        const recordTime = safeTime(record.updatedAt);
+        const existingScore = historyScore(existing);
+        const recordScore = historyScore(record);
+        if ((recordTime || existingTime) && recordTime > existingTime) records.set(record.id, { ...record });
+        else if (!recordTime && !existingTime && (recordScore > existingScore || (recordScore === existingScore && safeTime(record.date) > safeTime(existing.date)))) records.set(record.id, { ...record });
+      });
+      return [...records.values()].sort((a, b) => safeTime(a.date) - safeTime(b.date));
+    };
+
+    const mergeHealthHistory = (localHistory, remoteHistory) => {
+      const entries = new Map();
+      [...(localHistory || []), ...(remoteHistory || [])].forEach(entry => {
+        if (!entry?.id) return;
+        const existing = entries.get(entry.id);
+        if (!existing || safeTime(entry.timestamp) >= safeTime(existing.timestamp)) entries.set(entry.id, { ...existing, ...entry });
+      });
+      return [...entries.values()].sort((a, b) => safeTime(a.timestamp) - safeTime(b.timestamp)).slice(-90);
+    };
+
+    const mergeStateData = (localInput, remoteInput) => {
+      const local = normalizeState(localInput);
+      const remote = normalizeState(remoteInput);
+      const localIsNewer = safeTime(local.updatedAt) >= safeTime(remote.updatedAt);
+      const newer = localIsNewer ? local : remote;
+      const older = localIsNewer ? remote : local;
+      const localHealthTime = safeTime(local.health?.lastSyncAt || local.health?.latest?.timestamp);
+      const remoteHealthTime = safeTime(remote.health?.lastSyncAt || remote.health?.latest?.timestamp);
+      const latestHealth = localHealthTime >= remoteHealthTime ? local.health : remote.health;
+      return normalizeState({
+        ...older,
+        ...newer,
+        schema: 5,
+        updatedAt: Math.max(safeTime(local.updatedAt), safeTime(remote.updatedAt)),
+        weeks: mergeWeeks(local.weeks, remote.weeks, local.updatedAt, remote.updatedAt),
+        history: mergeHistory(local.history, remote.history),
+        health: {
+          ...older.health,
+          ...latestHealth,
+          history: mergeHealthHistory(local.health?.history, remote.health?.history)
+        }
+      });
+    };
+
+    const workoutRecordFor = (state, weekKey, dayId, existing) => {
+      const workout = DAYS.find(day => day.id === dayId);
+      if (!workout) return null;
+      const day = state.weeks?.[weekKey]?.[dayId] || {};
+      const entries = day.exercises || {};
+      if (!workout.exercises.every(exercise => entries[exercise.id]?.completed)) return null;
+      const exercises = workout.exercises.map(exercise => {
+        const entry = entries[exercise.id] || {};
+        const reps = Array.isArray(entry.reps) ? entry.reps : [];
+        const volume = exercise.multiplier ? Number(entry.weight || 0) * reps.reduce((sum, value) => sum + Number(value || 0), 0) * exercise.multiplier : 0;
+        return { id: exercise.id, name: exercise.name, weight: Number(entry.weight || 0), reps, rpe: entry.rpe || '', volume };
+      });
+      const fallbackDate = (() => {
+        if (weekKey === getWeekKey()) return new Date().toISOString();
+        const date = new Date(`${weekKey}T12:00:00`);
+        date.setDate(date.getDate() + workout.weekday - 1);
+        return date.toISOString();
+      })();
+      const candidate = {
+        id: `${weekKey}-${dayId}`,
+        weekKey,
+        workoutId: dayId,
+        title: workout.title,
+        date: existing?.date || fallbackDate,
+        tonnage: exercises.reduce((sum, exercise) => sum + exercise.volume, 0),
+        completedExercises: workout.exercises.length,
+        exercises
+      };
+      const comparable = record => JSON.stringify({ ...record, date: null, updatedAt: null });
+      if (existing && comparable(existing) === comparable(candidate)) return existing;
+      return { ...candidate, updatedAt: Math.max(Date.now(), safeTime(day.updatedAt), ...Object.values(entries).map(entry => safeTime(entry?._updatedAt))) };
+    };
+
+    const repairCompletedHistory = input => {
+      const state = normalizeState(input);
+      let history = state.history || [];
+      let changed = false;
+      Object.keys(state.weeks || {}).forEach(weekKey => {
+        DAYS.forEach(day => {
+          const id = `${weekKey}-${day.id}`;
+          const existing = history.find(record => record.id === id);
+          const record = workoutRecordFor(state, weekKey, day.id, existing);
+          if (!record || record === existing) return;
+          history = existing ? history.map(item => item.id === id ? record : item) : [...history, record];
+          changed = true;
+        });
+      });
+      return changed ? { ...state, schema: 5, history: mergeHistory(history, []), updatedAt: Math.max(Date.now(), safeTime(state.updatedAt)) } : state;
+    };
+
+    const saveRecoverySnapshot = state => {
+      try {
+        const current = JSON.parse(localStorage.getItem(RECOVERY_KEY) || '[]');
+        const snapshots = Array.isArray(current) ? current : [];
+        if (safeTime(snapshots.at(-1)?.updatedAt) !== safeTime(state.updatedAt)) snapshots.push(state);
+        localStorage.setItem(RECOVERY_KEY, JSON.stringify(snapshots.slice(-8)));
+      } catch {
+        try { localStorage.setItem(RECOVERY_KEY, JSON.stringify([state])); } catch {}
+      }
+    };
+
+    const persistState = (state, withRecovery = true) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+      if (withRecovery) saveRecoverySnapshot(state);
+    };
+
     const loadLocal = () => {
-      try { return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY))); }
-      catch { return cloneDefault(); }
+      let state = null;
+      try {
+        const primary = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (primary && typeof primary === 'object') state = normalizeState(primary);
+      } catch {}
+      try {
+        const snapshots = JSON.parse(localStorage.getItem(RECOVERY_KEY) || '[]');
+        if (Array.isArray(snapshots)) snapshots.forEach(snapshot => { if (snapshot && typeof snapshot === 'object') state = state ? mergeStateData(state, snapshot) : normalizeState(snapshot); });
+      } catch {}
+      const repaired = repairCompletedHistory(state || cloneDefault());
+      persistState(repaired, false);
+      return repaired;
     };
 
     const formatNumber = (n, digits = 0) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: digits }).format(Number(n || 0));
@@ -237,7 +425,7 @@
         .slice(-90);
       return {
         ...state,
-        schema: 4,
+        schema: 5,
         updatedAt: Date.now(),
         profile: {
           ...state.profile,
@@ -757,7 +945,7 @@
         <Card className="standalone-hidden p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="mobile-screen-button" /></div><div><h2 className="font-black">Добавить на экран «Домой»</h2><div className="mt-2 space-y-2 text-sm leading-relaxed text-muted"><p><b className="text-white">iPhone:</b> открой в Safari → «Поделиться» → «На экран Домой».</p><p><b className="text-white">Android:</b> меню Chrome → «Установить приложение» или «Добавить на главный экран».</p></div></div></div></Card>
         <Card className="p-5"><h2 className="font-black">Резервная копия</h2><p className="mt-1 text-sm text-muted">Экспортируй журнал в JSON или восстанови его из файла.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={exportData} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="download" className="mr-2 text-cyan"/>Экспорт</button><button onClick={() => fileRef.current?.click()} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="upload" className="mr-2 text-neon"/>Импорт</button></div><input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importData}/></Card>
         <button onClick={resetData} className="h-14 w-full rounded-2xl border border-red-400/20 bg-red-400/[.06] font-bold text-red-300">Сбросить весь журнал</button>
-        <p className="pb-2 text-center text-xs text-muted">IRON FLOW v4 · данные принадлежат только тебе</p>
+        <p className="pb-2 text-center text-xs text-muted">IRON FLOW v5 · защищённое сохранение данных</p>
       </div>;
     }
 
@@ -798,12 +986,15 @@
       const prevCompleteRef = useRef({});
 
       const mutate = (updater) => setData(prev => {
-        const next = typeof updater === 'function' ? updater(prev) : updater;
-        if (next === prev) return prev;
-        return { ...next, updatedAt: Date.now() };
+        const candidate = typeof updater === 'function' ? updater(prev) : updater;
+        if (candidate === prev) return prev;
+        const next = { ...candidate, schema: 5, updatedAt: Date.now() };
+        dataRef.current = next;
+        persistState(next, true);
+        return next;
       });
 
-      useEffect(() => { dataRef.current = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }, [data]);
+      useEffect(() => { dataRef.current = data; persistState(data, false); }, [data]);
       useEffect(() => { if (data.protein.date !== todayKey()) mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: 0 } })); }, []);
 
       useEffect(() => {
@@ -824,14 +1015,21 @@
 
       const startTimer = (seconds) => { setTimerDone(false); setTimer(seconds); setTimerRunning(true); };
       const updateExercise = (dayId, exerciseId, patch) => mutate(prev => {
+        const now = Date.now();
         const weeks = { ...prev.weeks };
         const week = { ...(weeks[weekKey] || {}) };
         const day = { ...(week[dayId] || {}) };
         const exercises = { ...(day.exercises || {}) };
         const exercise = DAYS.find(d => d.id === dayId).exercises.find(e => e.id === exerciseId);
-        exercises[exerciseId] = { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false, ...(exercises[exerciseId] || {}), ...patch };
-        day.exercises = exercises; week[dayId] = day; weeks[weekKey] = week;
-        return { ...prev, weeks };
+        exercises[exerciseId] = { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false, ...(exercises[exerciseId] || {}), ...patch, _updatedAt: now };
+        day.exercises = exercises; day.updatedAt = now; week[dayId] = day; weeks[weekKey] = week;
+        const draft = { ...prev, weeks };
+        const recordId = `${weekKey}-${dayId}`;
+        const existing = prev.history.find(record => record.id === recordId);
+        const record = workoutRecordFor(draft, weekKey, dayId, existing);
+        if (!record || record === existing) return draft;
+        const history = existing ? prev.history.map(item => item.id === recordId ? record : item) : [...prev.history, record];
+        return { ...draft, history };
       });
       const addProtein = amount => mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: (prev.protein.date === todayKey() ? Number(prev.protein.grams || 0) : 0) + amount } }));
       const resetProtein = () => mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: 0 } }));
@@ -852,27 +1050,13 @@
       const weeklyDone = DAYS.filter(d => dayStats[d.id]?.allComplete).length;
 
       useEffect(() => {
-        const workout = DAYS.find(d => d.id === selectedDay);
         const stats = dayStats[selectedDay];
-        if (!workout || !stats) return;
+        if (!stats) return;
         const key = `${weekKey}-${selectedDay}`;
         const was = prevCompleteRef.current[key];
         if (was === false && stats.allComplete) setCompletionOpen(true);
         prevCompleteRef.current[key] = stats.allComplete;
-        if (!stats.allComplete) return;
-        setData(prev => {
-          const entries = prev.weeks?.[weekKey]?.[selectedDay]?.exercises || {};
-          const existing = prev.history.find(h => h.id === key);
-          const snapshot = workout.exercises.map(ex => {
-            const e = entries[ex.id] || {};
-            return { id: ex.id, name: ex.name, weight: Number(e.weight || 0), reps: e.reps || [], rpe: e.rpe || '', volume: ex.multiplier ? Number(e.weight || 0) * (e.reps || []).reduce((a,r) => a + Number(r || 0), 0) * ex.multiplier : 0 };
-          });
-          const record = { id: key, weekKey, workoutId: selectedDay, title: workout.title, date: existing?.date || new Date().toISOString(), tonnage: stats.tonnage, completedExercises: workout.exercises.length, exercises: snapshot };
-          if (existing && JSON.stringify({ ...existing, date: null }) === JSON.stringify({ ...record, date: null })) return prev;
-          const history = existing ? prev.history.map(h => h.id === key ? record : h) : [...prev.history, record];
-          return { ...prev, history, updatedAt: Date.now() };
-        });
-      }, [selectedDay, weekKey, dayStats[selectedDay]?.allComplete, JSON.stringify(dayStats[selectedDay]?.entries || {})]);
+      }, [selectedDay, weekKey, dayStats[selectedDay]?.allComplete]);
 
       const bytesToBase64 = bytes => { let binary = ''; const step = 0x8000; for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, i + step)); return btoa(binary); };
       const base64ToBytes = value => Uint8Array.from(atob(value), c => c.charCodeAt(0));
@@ -919,6 +1103,7 @@
                   const next = applyHealthPayload(dataRef.current, raw);
                   if (next !== dataRef.current) {
                     dataRef.current = next;
+                    persistState(next, true);
                     setData(next);
                   }
                   await healthRef.remove();
@@ -938,8 +1123,16 @@
                   cloudReadyRef.current = true; startHealthInbox(); return;
                 }
                 const remote = await decryptState(envelope, key);
-                if (remote.updatedAt > dataRef.current.updatedAt) { suppressCloudRef.current = true; dataRef.current = remote; setData(remote); }
-                else if (remote.updatedAt < dataRef.current.updatedAt) await ref.set(await encryptState(dataRef.current, key));
+                const merged = repairCompletedHistory(mergeStateData(dataRef.current, remote));
+                const localChanged = JSON.stringify(merged) !== JSON.stringify(dataRef.current);
+                const remoteChanged = JSON.stringify(merged) !== JSON.stringify(remote);
+                if (localChanged) {
+                  suppressCloudRef.current = true;
+                  dataRef.current = merged;
+                  persistState(merged, true);
+                  setData(merged);
+                }
+                if (remoteChanged) await ref.set(await encryptState(merged, key));
                 cloudReadyRef.current = true;
                 startHealthInbox();
               } catch (e) { setCloudError('Не удалось расшифровать облако. Проверь код синхронизации.'); setCloudStatus('local'); }
@@ -957,7 +1150,7 @@
         cloudTimerRef.current = setTimeout(async () => {
           try { await cloudRef.current.set(await encryptState(dataRef.current, cloudKeyRef.current)); setCloudError(''); }
           catch (e) { setCloudError('Изменения сохранены локально и будут отправлены после восстановления связи.'); setCloudStatus('local'); }
-        }, 650);
+        }, 250);
         return () => clearTimeout(cloudTimerRef.current);
       }, [data, cloudStatus]);
 
@@ -972,7 +1165,7 @@
       const disconnectCloud = () => { localStorage.removeItem(CLOUD_KEY); setCloudSettings(null); setCloudStatus('local'); setCloudError(''); setHealthImportUrl(''); setHealthError(''); setCloudOpen(false); };
       const exportData = () => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ironflow-backup-${todayKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
       const importData = event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed = normalizeState(JSON.parse(reader.result)); mutate(parsed); alert('Резервная копия восстановлена.'); } catch { alert('Не удалось прочитать файл резервной копии.'); } }; reader.readAsText(file); event.target.value = ''; };
-      const resetData = () => { if (confirm('Удалить локальный журнал, историю и белок? Это действие нельзя отменить без резервной копии.')) { const clean = cloneDefault(); clean.updatedAt = Date.now(); setData(clean); } };
+      const resetData = () => { if (confirm('Удалить локальный журнал, историю и белок? Это действие нельзя отменить без экспортированной резервной копии.')) { localStorage.removeItem(RECOVERY_KEY); const clean = cloneDefault(); clean.updatedAt = Date.now(); dataRef.current = clean; persistState(clean, false); setData(clean); } };
       const openDay = id => { setSelectedDay(id); setTab('workout'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
       const selectedWorkout = DAYS.find(d => d.id === selectedDay);
 
