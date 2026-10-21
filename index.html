@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0d0f" />
   <meta name="color-scheme" content="dark" />
-  <meta name="description" content="IRON FLOW — мобильный дневник тренировок, прогрессии нагрузок и белка" />
+  <meta name="description" content="E-GYM — мобильный дневник тренировок, прогресса и питания" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="IRON FLOW" />
+  <meta name="apple-mobile-web-app-title" content="E-GYM" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>IRON FLOW — дневник тренировок</title>
+  <title>E-GYM — дневник тренировок</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%230a0d0f'/%3E%3Cpath d='M25 50h13v28H25zM90 50h13v28H90zM16 56h9v16h-9zM103 56h9v16h-9zM38 60h52v8H38z' fill='%238dfc63'/%3E%3C/svg%3E" />
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0d0f'/%3E%3Cpath d='M35 70h18v40H35zM127 70h18v40h-18zM22 79h13v22H22zM145 79h13v22h-13zM53 84h74v12H53z' fill='%238dfc63'/%3E%3C/svg%3E" />
-  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22IRON%20FLOW%20%E2%80%94%20%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B8%D0%BA%20%D1%82%D1%80%D0%B5%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%BA%22%2C%22short_name%22%3A%22IRON%20FLOW%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0d0f%22%2C%22theme_color%22%3A%22%230a0d0f%22%2C%22description%22%3A%22%D0%9C%D0%BE%D0%B1%D0%B8%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9%20%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B8%D0%BA%20%D1%82%D1%80%D0%B5%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%BA%22%7D" />
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22E-GYM%20%E2%80%94%20%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B8%D0%BA%20%D1%82%D1%80%D0%B5%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%BA%22%2C%22short_name%22%3A%22E-GYM%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0d0f%22%2C%22theme_color%22%3A%22%230a0d0f%22%2C%22description%22%3A%22%D0%9C%D0%BE%D0%B1%D0%B8%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9%20%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B8%D0%BA%20%D1%82%D1%80%D0%B5%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%BE%D0%BA%22%7D" />
   <script>
     tailwind = { config: { theme: { extend: {
       colors: { ink: '#0a0d0f', panel: '#111619', line: '#253038', neon: '#8dfc63', cyan: '#3fd6ff', muted: '#8d9aa3' },
@@ -52,7 +52,7 @@
 </head>
 <body>
   <div id="root"></div>
-  <noscript>Для работы IRON FLOW необходимо включить JavaScript.</noscript>
+  <noscript>Для работы E-GYM необходимо включить JavaScript.</noscript>
 
   <script type="text/babel">
     const { useEffect, useMemo, useRef, useState } = React;
@@ -154,11 +154,12 @@
     };
 
     const DEFAULT_STATE = {
-      schema: 5,
+      schema: 6,
       updatedAt: Date.now(),
       profile: { height: 188, weight: 79.6, muscle: 34.6, fat: 19, proteinGoal: 120 },
       protein: { date: todayKey(), grams: 0 },
       health: { lastSyncAt: null, lastImportId: '', latest: {}, history: [] },
+      measurements: [],
       weeks: {},
       history: []
     };
@@ -176,8 +177,11 @@
           ...base.health,
           ...(value.health || {}),
           latest: value.health?.latest && typeof value.health.latest === 'object' ? value.health.latest : {},
-          history: Array.isArray(value.health?.history) ? value.health.history.slice(-90) : []
+          history: Array.isArray(value.health?.history) ? value.health.history : []
         },
+        measurements: Array.isArray(value.measurements)
+          ? value.measurements
+          : (Array.isArray(value.health?.history) ? value.health.history.filter(entry => ['height', 'weight', 'muscle', 'fat'].some(key => Number(entry?.[key]) > 0)).map(entry => ({ ...entry, source: 'health' })) : []),
         weeks: value.weeks && typeof value.weeks === 'object' ? value.weeks : {},
         history: Array.isArray(value.history) ? value.history : []
       };
@@ -267,7 +271,17 @@
         const existing = entries.get(entry.id);
         if (!existing || safeTime(entry.timestamp) >= safeTime(existing.timestamp)) entries.set(entry.id, { ...existing, ...entry });
       });
-      return [...entries.values()].sort((a, b) => safeTime(a.timestamp) - safeTime(b.timestamp)).slice(-90);
+      return [...entries.values()].sort((a, b) => safeTime(a.timestamp) - safeTime(b.timestamp));
+    };
+
+    const mergeMeasurements = (localMeasurements, remoteMeasurements) => {
+      const entries = new Map();
+      [...(localMeasurements || []), ...(remoteMeasurements || [])].forEach(entry => {
+        if (!entry?.id) return;
+        const existing = entries.get(entry.id);
+        if (!existing || safeTime(entry.timestamp) >= safeTime(existing.timestamp)) entries.set(entry.id, { ...existing, ...entry });
+      });
+      return [...entries.values()].sort((a, b) => safeTime(a.timestamp) - safeTime(b.timestamp));
     };
 
     const mergeStateData = (localInput, remoteInput) => {
@@ -282,10 +296,11 @@
       return normalizeState({
         ...older,
         ...newer,
-        schema: 5,
+        schema: 6,
         updatedAt: Math.max(safeTime(local.updatedAt), safeTime(remote.updatedAt)),
         weeks: mergeWeeks(local.weeks, remote.weeks, local.updatedAt, remote.updatedAt),
         history: mergeHistory(local.history, remote.history),
+        measurements: mergeMeasurements(local.measurements, remote.measurements),
         health: {
           ...older.health,
           ...latestHealth,
@@ -304,7 +319,7 @@
         const entry = entries[exercise.id] || {};
         const reps = Array.isArray(entry.reps) ? entry.reps : [];
         const volume = exercise.multiplier ? Number(entry.weight || 0) * reps.reduce((sum, value) => sum + Number(value || 0), 0) * exercise.multiplier : 0;
-        return { id: exercise.id, name: exercise.name, weight: Number(entry.weight || 0), reps, rpe: entry.rpe || '', volume };
+        return { id: exercise.id, name: exercise.name, kind: exercise.kind, unit: exercise.unit || 'повт.', weight: Number(entry.weight || 0), reps, rpe: entry.rpe || '', mode: entry.mode || '', completed: Boolean(entry.completed), volume };
       });
       const fallbackDate = (() => {
         if (weekKey === getWeekKey()) return new Date().toISOString();
@@ -341,7 +356,7 @@
           changed = true;
         });
       });
-      return changed ? { ...state, schema: 5, history: mergeHistory(history, []), updatedAt: Math.max(Date.now(), safeTime(state.updatedAt)) } : state;
+      return changed ? { ...state, schema: 6, history: mergeHistory(history, []), updatedAt: Math.max(Date.now(), safeTime(state.updatedAt)) } : state;
     };
 
     const saveRecoverySnapshot = state => {
@@ -397,19 +412,22 @@
       const timestamp = Number.isNaN(parsedTimestamp.getTime()) ? new Date().toISOString() : parsedTimestamp.toISOString();
       let fat = healthNumber(value.fat ?? value.bodyFat);
       if (fat != null && fat > 0 && fat <= 1) fat *= 100;
+      let height = healthNumber(value.height);
+      if (height != null && height > 0 && height < 3) height *= 100;
       const entry = {
         id: String(value.id || `${timestamp}-${value.steps ?? ''}-${value.weight ?? ''}`),
         timestamp,
+        height,
         weight: healthNumber(value.weight),
         fat,
-        muscle: healthNumber(value.muscle),
+        muscle: healthNumber(value.muscle ?? value.skeletalMuscle),
         steps: healthNumber(value.steps),
         activeEnergy: healthNumber(value.activeEnergy ?? value.calories),
         restingHeartRate: healthNumber(value.restingHeartRate ?? value.heartRate),
         sleepHours: healthNumber(value.sleepHours ?? value.sleep),
         workoutMinutes: healthNumber(value.workoutMinutes ?? value.workout)
       };
-      const metricKeys = ['weight', 'fat', 'muscle', 'steps', 'activeEnergy', 'restingHeartRate', 'sleepHours', 'workoutMinutes'];
+      const metricKeys = ['height', 'weight', 'fat', 'muscle', 'steps', 'activeEnergy', 'restingHeartRate', 'sleepHours', 'workoutMinutes'];
       if (!metricKeys.some(key => entry[key] != null && entry[key] >= 0)) return null;
       entry.steps = entry.steps == null ? null : Math.round(entry.steps);
       return entry;
@@ -421,18 +439,23 @@
       const previousHealth = state.health || {};
       const previousHistory = Array.isArray(previousHealth.history) ? previousHealth.history : [];
       const history = [...previousHistory.filter(item => item.id !== entry.id), entry]
-        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-        .slice(-90);
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      const hasBodyMetrics = ['height', 'weight', 'muscle', 'fat'].some(key => Number(entry[key]) > 0);
+      const measurements = hasBodyMetrics
+        ? mergeMeasurements(state.measurements, [{ id: `health-${entry.id}`, timestamp: entry.timestamp, source: 'health', height: entry.height, weight: entry.weight, muscle: entry.muscle, fat: entry.fat }])
+        : (state.measurements || []);
       return {
         ...state,
-        schema: 5,
+        schema: 6,
         updatedAt: Date.now(),
         profile: {
           ...state.profile,
+          ...(entry.height != null && entry.height > 0 ? { height: Number(entry.height.toFixed(1)) } : {}),
           ...(entry.weight != null && entry.weight > 0 ? { weight: Number(entry.weight.toFixed(2)) } : {}),
           ...(entry.fat != null && entry.fat > 0 ? { fat: Number(entry.fat.toFixed(1)) } : {}),
           ...(entry.muscle != null && entry.muscle > 0 ? { muscle: Number(entry.muscle.toFixed(2)) } : {})
         },
+        measurements,
         health: {
           ...previousHealth,
           lastSyncAt: entry.timestamp,
@@ -495,6 +518,7 @@
     }
 
     function ProteinTracker({ data, onAdd, onReset }) {
+      const [customAmount, setCustomAmount] = useState('');
       const grams = data.date === todayKey() ? Number(data.grams || 0) : 0;
       const options = [
         { amount: 30, name: 'TEOS PRO' },
@@ -517,6 +541,10 @@
             {options.map(o => <button key={o.name} onClick={() => onAdd(o.amount)} className="min-h-[58px] rounded-2xl border border-line bg-white/[.035] px-3 py-2 text-left active:scale-[.98]">
               <span className="block font-black text-neon">+{o.amount} г</span><span className="block truncate text-xs text-muted">{o.name}</span>
             </button>)}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <label className="min-w-0 flex-1"><span className="sr-only">Своё количество белка</span><input type="number" inputMode="decimal" min="0.1" max="500" step="0.1" value={customAmount} onChange={event => setCustomAmount(event.target.value)} placeholder="Своё количество, г" className="h-12 w-full rounded-2xl border border-line bg-black/25 px-4 text-sm font-bold outline-none focus:border-cyan" /></label>
+            <button onClick={() => { const amount = Number(customAmount); if (amount > 0 && amount <= 500) { onAdd(amount); setCustomAmount(''); } }} disabled={!Number(customAmount) || Number(customAmount) <= 0 || Number(customAmount) > 500} className="h-12 shrink-0 rounded-2xl bg-cyan px-4 font-black text-ink disabled:opacity-35">Добавить</button>
           </div>
         </Card>
       );
@@ -683,9 +711,9 @@
             <Card className="relative overflow-hidden p-5 grid-bg">
               <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-neon/10 blur-3xl"></div>
               <p className="text-xs font-black uppercase tracking-[.2em] text-neon">Тренируйся умно</p>
-              <h1 className="mt-2 max-w-xl text-3xl font-black leading-[1.04] sm:text-4xl">Сильнее каждую неделю.<br/><span className="text-white/45">Без риска для спины.</span></h1>
+              <h1 className="mt-2 max-w-xl text-3xl font-black leading-[1.04] sm:text-4xl">Сильнее каждую неделю.<br/><span className="text-white/45">Фиксируй каждый результат.</span></h1>
               <div className="mt-5 grid grid-cols-3 gap-2">
-                {[['79.6','кг вес'],['34.6','кг мышц'],['19%','жир']].map(([v,l]) => <div key={l} className="rounded-2xl border border-white/5 bg-black/20 p-3"><b className="block text-lg">{v}</b><span className="text-[10px] uppercase tracking-wider text-muted">{l}</span></div>)}
+                {[[formatNumber(data.profile.weight, 1),'кг вес'],[formatNumber(data.profile.muscle, 1),'кг мышц'],[`${formatNumber(data.profile.fat, 1)}%`,'жир']].map(([v,l]) => <div key={l} className="rounded-2xl border border-white/5 bg-black/20 p-3"><b className="block text-lg">{v}</b><span className="text-[10px] uppercase tracking-wider text-muted">{l}</span></div>)}
               </div>
             </Card>
             <ProteinTracker data={data.protein} onAdd={addProtein} onReset={resetProtein} />
@@ -760,14 +788,14 @@
       </div>;
     }
 
-    function MiniLineChart({ points, color = '#8dfc63', suffix = '' }) {
-      if (!points.length) return <div className="grid h-44 place-items-center rounded-2xl border border-dashed border-line text-center text-sm text-muted">Данные появятся после первой<br/>завершённой тренировки</div>;
-      const width = 340, height = 170, padX = 28, padY = 24;
+    function MiniLineChart({ points, color = '#8dfc63', suffix = '', emptyText = 'Данные появятся после первой завершённой тренировки' }) {
+      if (!points.length) return <div className="grid h-44 place-items-center rounded-2xl border border-dashed border-line px-5 text-center text-sm text-muted">{emptyText}</div>;
+      const width = Math.max(340, points.length * 72), height = 170, padX = 28, padY = 24;
       const values = points.map(p => Number(p.value || 0));
       const min = Math.min(...values), max = Math.max(...values);
       const range = max - min || 1;
       const coords = points.map((p, i) => ({ x: points.length === 1 ? width / 2 : padX + i * (width - padX * 2) / (points.length - 1), y: height - padY - (Number(p.value) - min) / range * (height - padY * 2), ...p }));
-      return <div className="overflow-hidden rounded-2xl bg-black/20 p-2"><svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full" role="img" aria-label="График прогресса">
+      return <div className="overflow-x-auto rounded-2xl bg-black/20 p-2 hide-scrollbar"><svg viewBox={`0 0 ${width} ${height}`} className="h-44" style={{ width: `${width}px`, minWidth: '100%' }} role="img" aria-label="График прогресса">
         {[0,1,2,3].map(i => <line key={i} x1="18" x2={width - 12} y1={25 + i * 40} y2={25 + i * 40} stroke="rgba(255,255,255,.07)" />)}
         {coords.length > 1 && <polyline fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" points={coords.map(p => `${p.x},${p.y}`).join(' ')} />}
         {coords.map((p, i) => <g key={i}><circle cx={p.x} cy={p.y} r="6" fill="#0a0d0f" stroke={color} strokeWidth="4"/><text x={p.x} y={Math.max(13, p.y - 12)} fill="white" textAnchor="middle" fontSize="11" fontWeight="800">{formatNumber(p.value, 1)}{suffix}</text><text x={p.x} y={height - 5} fill="#8d9aa3" textAnchor="middle" fontSize="9">{p.label}</text></g>)}
@@ -777,12 +805,15 @@
     function ProgressView({ data }) {
       const allExercises = DAYS.flatMap(d => d.exercises);
       const [selected, setSelected] = useState(allExercises[0].id);
+      const [bodyMetric, setBodyMetric] = useState('weight');
       const history = [...data.history].sort((a,b) => new Date(a.date) - new Date(b.date));
-      const exercisePoints = history.filter(h => h.exercises?.some(e => e.id === selected && Number(e.weight) > 0)).slice(-8).map(h => {
+      const exercisePoints = history.filter(h => h.exercises?.some(e => e.id === selected && Number(e.weight) > 0)).map(h => {
         const e = h.exercises.find(x => x.id === selected); return { value: Number(e.weight), label: new Date(h.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) };
       });
       const weekMap = history.reduce((acc, h) => { acc[h.weekKey] = (acc[h.weekKey] || 0) + Number(h.tonnage || 0); return acc; }, {});
-      const tonnagePoints = Object.entries(weekMap).sort(([a],[b]) => a.localeCompare(b)).slice(-8).map(([week, value]) => ({ value, label: week.slice(5).split('-').reverse().join('.') }));
+      const tonnagePoints = Object.entries(weekMap).sort(([a],[b]) => a.localeCompare(b)).map(([week, value]) => ({ value, label: week.slice(5).split('-').reverse().join('.') }));
+      const bodyMetrics = { weight: { label: 'Вес', unit: ' кг' }, muscle: { label: 'Скелетные мышцы', unit: ' кг' }, fat: { label: 'Процент жира', unit: '%' }, height: { label: 'Рост', unit: ' см' } };
+      const bodyPoints = [...(data.measurements || [])].filter(item => Number(item?.[bodyMetric]) > 0).sort((a,b) => safeTime(a.timestamp) - safeTime(b.timestamp)).map(item => ({ value: Number(item[bodyMetric]), label: new Date(item.timestamp).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) }));
       const totalTonnage = history.reduce((a,h) => a + Number(h.tonnage || 0), 0);
       const bestSession = Math.max(0, ...history.map(h => Number(h.tonnage || 0)));
       return <div className="space-y-5">
@@ -792,6 +823,12 @@
           <Card className="p-3"><Icon name="weight-hanging" className="text-cyan"/><b className="mt-2 block text-xl">{formatNumber(totalTonnage / 1000, 1)}</b><span className="text-[10px] text-muted">тонн всего</span></Card>
           <Card className="p-3"><Icon name="trophy" className="text-amber-300"/><b className="mt-2 block text-xl">{formatNumber(bestSession)}</b><span className="text-[10px] text-muted">кг рекорд</span></Card>
         </div>
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Показатели тела</p><h2 className="mt-1 font-black">Динамика замеров</h2></div><Icon name="person" className="text-cyan" /></div>
+          <select value={bodyMetric} onChange={event => setBodyMetric(event.target.value)} className="mt-4 h-12 w-full rounded-2xl border border-line bg-[#0b0f11] px-4 text-sm font-bold outline-none focus:border-cyan">{Object.entries(bodyMetrics).map(([key, metric]) => <option key={key} value={key}>{metric.label}</option>)}</select>
+          <div className="mt-4"><MiniLineChart points={bodyPoints} color="#3fd6ff" suffix={bodyMetrics[bodyMetric].unit} emptyText="Сохрани ручной замер или импортируй его из Apple Health" /></div>
+          <p className="mt-3 text-xs leading-relaxed text-muted">В график попадают все ручные замеры и импорты Apple Health. Старые значения не удаляются.</p>
+        </Card>
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-neon">Рабочий вес</p><h2 className="mt-1 font-black">Динамика упражнения</h2></div><Icon name="chart-line" className="text-neon" /></div>
           <select value={selected} onChange={e => setSelected(e.target.value)} className="mt-4 h-12 w-full rounded-2xl border border-line bg-[#0b0f11] px-4 text-sm font-bold outline-none focus:border-neon">{DAYS.map(day => <optgroup key={day.id} label={day.label}>{day.exercises.filter(e => e.kind !== 'bodyweight' && e.kind !== 'cardio').map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}</optgroup>)}</select>
@@ -803,9 +840,12 @@
           <p className="mt-3 text-xs leading-relaxed text-muted">Для парных гантелей вес считается для обеих рук. Планки и упражнения без веса не входят в тоннаж.</p>
         </Card>
         <div>
-          <h2 className="mb-3 text-lg font-black">Последние тренировки</h2>
+          <h2 className="mb-3 text-lg font-black">Все тренировки</h2>
           <div className="space-y-3">
-            {[...history].reverse().slice(0, 10).map(h => <Card key={h.id} className="flex items-center gap-4 p-4"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="check" /></div><div className="min-w-0 flex-1"><p className="truncate font-bold">{h.title}</p><p className="text-xs text-muted">{formatDate(h.date)} · {h.completedExercises} упражнений</p></div><div className="text-right"><b>{formatNumber(h.tonnage)}</b><span className="block text-[10px] text-muted">кг</span></div></Card>)}
+            {[...history].reverse().map(h => <details key={h.id} className="group overflow-hidden rounded-[1.6rem] border border-line bg-panel/90">
+              <summary className="flex cursor-pointer list-none items-center gap-4 p-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="check" /></div><div className="min-w-0 flex-1"><p className="truncate font-bold">{h.title}</p><p className="text-xs text-muted">{formatDate(h.date)} · {h.completedExercises} упражнений</p></div><div className="text-right"><b>{formatNumber(h.tonnage)}</b><span className="block text-[10px] text-muted">кг</span></div><Icon name="chevron-down" className="text-muted transition group-open:rotate-180" /></summary>
+              <div className="border-t border-line px-4 py-3">{(h.exercises || []).map(exercise => <div key={exercise.id} className="flex items-start justify-between gap-3 border-b border-white/5 py-3 last:border-0"><div className="min-w-0"><p className="text-sm font-bold">{exercise.name}</p><p className="mt-1 text-xs text-muted">{(exercise.reps || []).filter(value => value !== '').join(' / ') || '—'} {exercise.kind === 'cardio' ? 'мин' : 'повторений'}{exercise.mode ? ` · ${{ walk: 'Дорожка', ellipse: 'Эллипс', bike: 'Вело' }[exercise.mode] || exercise.mode}` : ''}{exercise.rpe ? ` · RPE: ${RPE_OPTIONS.find(option => option.id === exercise.rpe)?.label || exercise.rpe}` : ''}</p></div><div className="shrink-0 text-right"><b className="text-sm">{Number(exercise.weight) > 0 ? `${formatNumber(exercise.weight, 1)} кг` : 'без веса'}</b><span className="block text-[10px] text-muted">{formatNumber(exercise.volume)} кг объём</span></div></div>)}</div>
+            </details>)}
             {!history.length && <Card className="p-6 text-center text-sm text-muted">Заверши все упражнения дня — запись появится здесь автоматически.</Card>}
           </div>
         </div>
@@ -875,6 +915,7 @@
       const sample = `{
   "id": "Текущая дата",
   "timestamp": "Текущая дата",
+  "height": "Рост в сантиметрах",
   "weight": "Вес",
   "fat": "Процент жира",
   "muscle": "Скелетные мышцы — только если источник отдаёт именно этот показатель",
@@ -888,12 +929,12 @@
       return <Modal open={open} onClose={onClose} wide>
         <p className="text-xs font-black uppercase tracking-[.18em] text-neon">iPhone · Команды · Здоровье</p>
         <h2 className="mt-2 pr-12 text-2xl font-black">Подключить Apple Health</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">Команда на iPhone отправляет один временный пакет в Firebase. Iron Flow забирает его, добавляет в зашифрованный журнал и удаляет пакет из входящей папки.</p>
+        <p className="mt-3 text-sm leading-relaxed text-muted">Команда на iPhone отправляет один временный пакет в Firebase. E-GYM забирает его, добавляет в зашифрованный журнал и удаляет пакет из входящей папки.</p>
         {error && <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-3 text-sm leading-relaxed text-amber-100"><Icon name="triangle-exclamation" className="mr-2"/>{error}</div>}
 
         {data.health?.lastSyncAt && <div className="mt-5 rounded-2xl border border-neon/20 bg-neon/[.06] p-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-neon text-ink"><Icon name="heart-pulse" /></span><div><b className="block">Последний импорт получен</b><span className="text-xs text-muted">{formatDateTime(data.health.lastSyncAt)}</span></div></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{[
-          ['steps', 'Шаги', ''], ['activeEnergy', 'Активность', 'ккал'], ['restingHeartRate', 'Пульс покоя', 'уд/мин'], ['sleepHours', 'Сон', 'ч']
-        ].map(([key, label, unit]) => <div key={key} className="rounded-xl bg-black/20 p-3"><b>{latest[key] == null ? '—' : formatNumber(latest[key], key === 'sleepHours' ? 1 : 0)}</b>{unit && <span className="ml-1 text-[10px] text-muted">{unit}</span>}<span className="mt-1 block text-[10px] uppercase text-muted">{label}</span></div>)}</div></div>}
+          ['height', 'Рост', 'см'], ['weight', 'Вес', 'кг'], ['muscle', 'Мышцы', 'кг'], ['fat', 'Жир', '%'], ['steps', 'Шаги', ''], ['activeEnergy', 'Активность', 'ккал'], ['restingHeartRate', 'Пульс покоя', 'уд/мин'], ['sleepHours', 'Сон', 'ч']
+        ].map(([key, label, unit]) => <div key={key} className="rounded-xl bg-black/20 p-3"><b>{latest[key] == null ? '—' : formatNumber(latest[key], ['height', 'weight', 'muscle', 'fat', 'sleepHours'].includes(key) ? 1 : 0)}</b>{unit && <span className="ml-1 text-[10px] text-muted">{unit}</span>}<span className="mt-1 block text-[10px] uppercase text-muted">{label}</span></div>)}</div></div>}
 
         <div className="mt-5 rounded-2xl border border-line bg-black/20 p-4">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Шаг 1</p><h3 className="mt-1 font-black">Обнови Firebase Rules</h3></div><button onClick={() => copy(rules, 'rules')} className="h-11 rounded-xl bg-white/8 px-4 text-sm font-bold text-cyan">{copied === 'rules' ? 'Скопировано' : 'Копировать'}</button></div>
@@ -910,42 +951,63 @@
         <div className="mt-3 rounded-2xl border border-line bg-black/20 p-4">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Шаг 3</p><h3 className="mt-1 font-black">Создай команду на iPhone</h3></div>{importUrl && <a href="shortcuts://create-shortcut" className="grid h-11 place-items-center rounded-xl bg-cyan px-4 text-sm font-black text-ink">Открыть</a>}</div>
           <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/75">
-            <li><b className="text-white">1.</b> В «Командах» нажми <b className="text-white">+</b> и назови команду «IRON FLOW Health».</li>
-            <li><b className="text-white">2.</b> Для каждого нужного показателя добавь «Найти образцы Здоровья» и «Получить сведения об образцах Здоровья». Для веса, жира и пульса выбери самый новый результат; для шагов и активной энергии за сегодня — сумму.</li>
+            <li><b className="text-white">1.</b> В «Командах» нажми <b className="text-white">+</b> и назови команду «E-GYM Health».</li>
+            <li><b className="text-white">2.</b> Для каждого нужного показателя добавь «Найти образцы Здоровья» и «Получить сведения об образцах Здоровья». Для роста, веса, жира, скелетных мышц и пульса выбери самый новый результат; для шагов и активной энергии за сегодня — сумму. Укажи единицы: рост — см, вес и мышцы — кг, жир — %.</li>
             <li><b className="text-white">3.</b> Добавь действие <b className="text-white">URL</b> и вставь секретный адрес выше.</li>
             <li><b className="text-white">4.</b> Добавь «Получить содержимое URL»: метод <b className="text-white">PUT</b>, тело запроса <b className="text-white">JSON</b>. Используй названия полей из примера ниже и подставь переменные из «Здоровья».</li>
-            <li><b className="text-white">5.</b> Запусти команду и разреши доступ к выбранным данным. Затем открой Iron Flow — импорт появится в профиле.</li>
+            <li><b className="text-white">5.</b> Запусти команду и разреши доступ к выбранным данным. Затем открой E-GYM — импорт появится в профиле.</li>
           </ol>
           <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-muted">Необязательные поля можно не добавлять.</span><button onClick={() => copy(sample, 'sample')} className="h-10 rounded-xl bg-white/8 px-3 text-xs font-bold text-cyan">{copied === 'sample' ? 'Скопировано' : 'Поля JSON'}</button></div>
           <pre className="mt-3 max-h-56 overflow-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/70">{sample}</pre>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-4 text-xs leading-relaxed text-muted"><Icon name="circle-info" className="mr-2 text-cyan"/>Автоматизацию можно добавить после успешного ручного запуска: «Команды» → «Автоматизация» → «Время суток» → ежедневно → «Выполнить немедленно» → запустить «IRON FLOW Health».</div>
+        <div className="mt-4 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-4 text-xs leading-relaxed text-muted"><Icon name="circle-info" className="mr-2 text-cyan"/>Автоматизацию можно добавить после успешного ручного запуска: «Команды» → «Автоматизация» → «Время суток» → ежедневно → «Выполнить немедленно» → запустить «E-GYM Health».</div>
         <button onClick={onClose} className="mt-5 h-14 w-full rounded-2xl bg-white/8 font-black">Готово</button>
       </Modal>;
     }
 
-    function ProfileView({ data, cloudStatus, openCloud, openHealth, exportData, importData, resetData }) {
+    function ProfileView({ data, cloudStatus, openCloud, openHealth, updateProfile, exportData, importData, resetData }) {
       const fileRef = useRef(null);
       const latestHealth = data.health?.latest || {};
+      const [profileDraft, setProfileDraft] = useState(() => ({ height: String(data.profile.height ?? ''), weight: String(data.profile.weight ?? ''), muscle: String(data.profile.muscle ?? ''), fat: String(data.profile.fat ?? '') }));
+      const [profileSaved, setProfileSaved] = useState(false);
+      useEffect(() => {
+        setProfileDraft({ height: String(data.profile.height ?? ''), weight: String(data.profile.weight ?? ''), muscle: String(data.profile.muscle ?? ''), fat: String(data.profile.fat ?? '') });
+      }, [data.profile.height, data.profile.weight, data.profile.muscle, data.profile.fat]);
+      const profileFields = [
+        ['height', 'Рост', 'см', '1'],
+        ['weight', 'Вес', 'кг', '0.1'],
+        ['muscle', 'Скелетные мышцы', 'кг', '0.1'],
+        ['fat', 'Процент жира', '%', '0.1']
+      ];
+      const saveProfile = () => {
+        const values = Object.fromEntries(Object.entries(profileDraft).map(([key, value]) => [key, Number(String(value).replace(',', '.'))]));
+        if (Object.values(values).some(value => !Number.isFinite(value) || value <= 0)) return;
+        updateProfile(values);
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 1800);
+      };
       return <div className="space-y-5">
         <div><p className="text-xs font-black uppercase tracking-[.2em] text-neon">Профиль и настройки</p><h1 className="mt-2 text-3xl font-black">Твои данные.<br/><span className="text-white/40">Под твоим контролем.</span></h1></div>
         <Card className="overflow-hidden p-5">
-          <div className="flex items-center gap-4"><div className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-neon to-cyan text-2xl text-ink"><Icon name="user" /></div><div><h2 className="text-xl font-black">Атлет IRON FLOW</h2><p className="text-sm text-muted">Цель: сила, мышечная масса и безопасная техника</p></div></div>
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">{[[data.profile.height,'см','Рост'],[data.profile.weight,'кг','Вес'],[data.profile.muscle,'кг','Мышцы'],[data.profile.fat,'%','Жир']].map(([v,u,l]) => <div key={l} className="rounded-2xl bg-black/20 p-3"><b className="text-xl">{v}</b><span className="ml-1 text-xs text-muted">{u}</span><span className="mt-1 block text-[10px] uppercase tracking-wider text-muted">{l}</span></div>)}</div>
+          <div className="flex items-center gap-4"><div className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-neon to-cyan text-2xl text-ink"><Icon name="user" /></div><div><h2 className="text-xl font-black">Атлет E-GYM</h2><p className="text-sm text-muted">Apple Health или ручное редактирование</p></div></div>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{profileFields.map(([key, label, unit, step]) => <label key={key} className="rounded-2xl bg-black/20 p-3"><span className="block text-[10px] font-black uppercase tracking-wider text-muted">{label}</span><span className="mt-2 flex items-center gap-2"><input type="number" inputMode="decimal" min="0.1" step={step} value={profileDraft[key]} onChange={event => setProfileDraft(previous => ({ ...previous, [key]: event.target.value }))} className="min-w-0 flex-1 bg-transparent text-xl font-black outline-none"/><span className="text-xs text-muted">{unit}</span></span>{latestHealth[key] != null && <span className="mt-1 block text-[9px] font-bold uppercase text-neon">есть в Health</span>}</label>)}</div>
+          <button onClick={saveProfile} className="mt-4 h-12 w-full rounded-2xl bg-neon font-black text-ink"><Icon name={profileSaved ? 'check' : 'floppy-disk'} className="mr-2"/>{profileSaved ? 'Сохранено' : 'Сохранить показатели'}</button>
+          <p className="mt-3 text-xs leading-relaxed text-muted">Каждое сохранение создаёт отдельную точку в динамике. Следующий импорт Apple Health автоматически обновит доступные показатели.</p>
         </Card>
         <Card className="border-amber-300/20 p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-300/10 text-amber-300"><Icon name="shield-heart" /></div><div><h2 className="font-black">Небольшой сколиоз</h2><p className="mt-2 text-sm leading-relaxed text-muted">Контролируй симметрию, используй опоры и избегай чрезмерных осевых нагрузок. Острая боль, онемение или прострел — повод остановиться и обратиться к врачу/физиотерапевту.</p></div></div></Card>
         <Card className="p-5"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Синхронизация</p><h2 className="mt-1 font-black">{cloudStatus === 'active' ? 'Облако активно' : cloudStatus === 'connecting' ? 'Подключаем облако…' : 'Локальный режим'}</h2><p className="mt-1 text-xs text-muted">Локальная копия сохраняется всегда</p></div><button onClick={openCloud} className={`h-12 rounded-2xl px-4 font-black ${cloudStatus === 'active' ? 'bg-neon text-ink' : 'bg-white/8 text-cyan'}`}>{cloudStatus === 'active' ? 'Настроить' : 'Подключить'}</button></div></Card>
         <Card className="overflow-hidden border-neon/20 p-5">
           <div className="flex items-center justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-neon to-cyan text-ink"><Icon name="heart-pulse" /></div><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wider text-neon">Apple Health</p><h2 className="truncate font-black">{data.health?.lastSyncAt ? 'Данные подключены' : 'Импорт с iPhone'}</h2><p className="mt-1 text-xs text-muted">{data.health?.lastSyncAt ? `Последний импорт: ${formatDateTime(data.health.lastSyncAt)}` : 'Через приложение «Команды»'}</p></div></div><button onClick={openHealth} className="h-12 shrink-0 rounded-2xl bg-white/8 px-4 font-black text-cyan">{data.health?.lastSyncAt ? 'Открыть' : 'Настроить'}</button></div>
           {data.health?.lastSyncAt && <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{[
+            [latestHealth.weight, 'кг', 'Вес'], [latestHealth.muscle, 'кг', 'Мышцы'], [latestHealth.fat, '%', 'Жир'], [latestHealth.height, 'см', 'Рост'],
             [latestHealth.steps, '', 'Шаги'], [latestHealth.activeEnergy, 'ккал', 'Активность'], [latestHealth.restingHeartRate, 'уд/мин', 'Пульс покоя'], [latestHealth.sleepHours, 'ч', 'Сон']
-          ].map(([value, unit, label]) => <div key={label} className="rounded-2xl bg-black/20 p-3"><b className="text-lg">{value == null ? '—' : formatNumber(value, label === 'Сон' ? 1 : 0)}</b>{unit && <span className="ml-1 text-[10px] text-muted">{unit}</span>}<span className="mt-1 block text-[10px] uppercase tracking-wider text-muted">{label}</span></div>)}</div>}
+          ].map(([value, unit, label]) => <div key={label} className="rounded-2xl bg-black/20 p-3"><b className="text-lg">{value == null ? '—' : formatNumber(value, ['Вес', 'Мышцы', 'Жир', 'Рост', 'Сон'].includes(label) ? 1 : 0)}</b>{unit && <span className="ml-1 text-[10px] text-muted">{unit}</span>}<span className="mt-1 block text-[10px] uppercase tracking-wider text-muted">{label}</span></div>)}</div>}
         </Card>
         <Card className="standalone-hidden p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="mobile-screen-button" /></div><div><h2 className="font-black">Добавить на экран «Домой»</h2><div className="mt-2 space-y-2 text-sm leading-relaxed text-muted"><p><b className="text-white">iPhone:</b> открой в Safari → «Поделиться» → «На экран Домой».</p><p><b className="text-white">Android:</b> меню Chrome → «Установить приложение» или «Добавить на главный экран».</p></div></div></div></Card>
         <Card className="p-5"><h2 className="font-black">Резервная копия</h2><p className="mt-1 text-sm text-muted">Экспортируй журнал в JSON или восстанови его из файла.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={exportData} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="download" className="mr-2 text-cyan"/>Экспорт</button><button onClick={() => fileRef.current?.click()} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="upload" className="mr-2 text-neon"/>Импорт</button></div><input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importData}/></Card>
         <button onClick={resetData} className="h-14 w-full rounded-2xl border border-red-400/20 bg-red-400/[.06] font-bold text-red-300">Сбросить весь журнал</button>
-        <p className="pb-2 text-center text-xs text-muted">IRON FLOW v5 · защищённое сохранение данных</p>
+        <p className="pb-2 text-center text-xs text-muted">E-GYM v6 · защищённое сохранение данных</p>
       </div>;
     }
 
@@ -988,7 +1050,7 @@
       const mutate = (updater) => setData(prev => {
         const candidate = typeof updater === 'function' ? updater(prev) : updater;
         if (candidate === prev) return prev;
-        const next = { ...candidate, schema: 5, updatedAt: Date.now() };
+        const next = { ...candidate, schema: 6, updatedAt: Date.now() };
         dataRef.current = next;
         persistState(next, true);
         return next;
@@ -1031,8 +1093,14 @@
         const history = existing ? prev.history.map(item => item.id === recordId ? record : item) : [...prev.history, record];
         return { ...draft, history };
       });
-      const addProtein = amount => mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: (prev.protein.date === todayKey() ? Number(prev.protein.grams || 0) : 0) + amount } }));
+      const addProtein = amount => mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: Math.round(((prev.protein.date === todayKey() ? Number(prev.protein.grams || 0) : 0) + Number(amount || 0)) * 10) / 10 } }));
       const resetProtein = () => mutate(prev => ({ ...prev, protein: { date: todayKey(), grams: 0 } }));
+      const updateProfile = values => mutate(prev => {
+        const timestamp = new Date().toISOString();
+        const profile = { ...prev.profile, ...values };
+        const measurement = { id: `manual-${Date.now()}`, timestamp, source: 'manual', height: profile.height, weight: profile.weight, muscle: profile.muscle, fat: profile.fat };
+        return { ...prev, profile, measurements: mergeMeasurements(prev.measurements, [measurement]) };
+      });
 
       const dayStats = useMemo(() => {
         const result = {};
@@ -1163,7 +1231,7 @@
 
       const saveCloud = settings => { localStorage.setItem(CLOUD_KEY, JSON.stringify(settings)); setCloudSettings(settings); setCloudOpen(false); };
       const disconnectCloud = () => { localStorage.removeItem(CLOUD_KEY); setCloudSettings(null); setCloudStatus('local'); setCloudError(''); setHealthImportUrl(''); setHealthError(''); setCloudOpen(false); };
-      const exportData = () => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `ironflow-backup-${todayKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
+      const exportData = () => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `e-gym-backup-${todayKey()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
       const importData = event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed = normalizeState(JSON.parse(reader.result)); mutate(parsed); alert('Резервная копия восстановлена.'); } catch { alert('Не удалось прочитать файл резервной копии.'); } }; reader.readAsText(file); event.target.value = ''; };
       const resetData = () => { if (confirm('Удалить локальный журнал, историю и белок? Это действие нельзя отменить без экспортированной резервной копии.')) { localStorage.removeItem(RECOVERY_KEY); const clean = cloneDefault(); clean.updatedAt = Date.now(); dataRef.current = clean; persistState(clean, false); setData(clean); } };
       const openDay = id => { setSelectedDay(id); setTab('workout'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -1179,7 +1247,7 @@
       return <div className="min-h-dvh pb-32">
         <header className="safe-top sticky top-0 z-40 border-b border-line glass">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-            <button onClick={() => { setTab('workout'); window.scrollTo({top:0,behavior:'smooth'}); }} className="flex items-center gap-3 text-left"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-neon text-ink shadow-glow"><Icon name="dumbbell" /></span><span><b className="block text-sm leading-none tracking-wide">IRON FLOW</b><small className="text-[10px] uppercase tracking-[.18em] text-muted">Train · Track · Grow</small></span></button>
+            <button onClick={() => { setTab('workout'); window.scrollTo({top:0,behavior:'smooth'}); }} className="flex items-center gap-3 text-left"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-neon text-ink shadow-glow"><Icon name="dumbbell" /></span><span><b className="block text-sm leading-none tracking-wide">E-GYM</b><small className="text-[10px] uppercase tracking-[.18em] text-muted">Train · Track · Grow</small></span></button>
             <button aria-label={cloudStatus === 'active' ? 'Облако активно' : cloudStatus === 'connecting' ? 'Синхронизация облака' : 'Локальный режим. Подключить облако'} onClick={() => setCloudOpen(true)} className={`flex h-10 items-center gap-2 rounded-full border px-3 text-xs font-black ${cloudStatus === 'active' ? 'border-neon/25 bg-neon/10 text-neon' : cloudStatus === 'connecting' ? 'border-cyan/25 bg-cyan/10 text-cyan' : 'border-line bg-white/[.03] text-muted'}`}><span className={`h-2 w-2 rounded-full ${cloudStatus === 'active' ? 'bg-neon' : cloudStatus === 'connecting' ? 'animate-pulse bg-cyan' : 'bg-muted'}`}></span><span className="hidden sm:inline">{cloudStatus === 'active' ? 'Облако активно' : cloudStatus === 'connecting' ? 'Синхронизация' : 'Локальный режим'}</span><Icon name={cloudStatus === 'active' ? 'cloud-arrow-up' : 'hard-drive'} className="sm:hidden" /></button>
           </div>
           <TimerBar timer={timer} setTimer={setTimer} running={timerRunning} setRunning={setTimerRunning} done={timerDone} clearDone={() => setTimerDone(false)} />
@@ -1189,7 +1257,7 @@
           {tab === 'workout' && <WorkoutView data={data} selectedDay={selectedDay} setSelectedDay={setSelectedDay} weekKey={weekKey} updateExercise={updateExercise} addProtein={addProtein} resetProtein={resetProtein} startTimer={startTimer} analysisOpen={analysisOpen} setAnalysisOpen={setAnalysisOpen} />}
           {tab === 'plan' && <PlanView data={data} weekKey={weekKey} onOpenDay={openDay} />}
           {tab === 'progress' && <ProgressView data={data} />}
-          {tab === 'profile' && <ProfileView data={data} cloudStatus={cloudStatus} openCloud={() => setCloudOpen(true)} openHealth={() => setHealthOpen(true)} exportData={exportData} importData={importData} resetData={resetData} />}
+          {tab === 'profile' && <ProfileView data={data} cloudStatus={cloudStatus} openCloud={() => setCloudOpen(true)} openHealth={() => setHealthOpen(true)} updateProfile={updateProfile} exportData={exportData} importData={importData} resetData={resetData} />}
         </main>
 
         <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-line glass">
