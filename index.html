@@ -154,13 +154,14 @@
     };
 
     const DEFAULT_STATE = {
-      schema: 8,
+      schema: 9,
       updatedAt: Date.now(),
       profile: { height: 188, weight: 79.6, muscle: 34.6, fat: 19, proteinGoal: 120 },
       protein: { date: todayKey(), grams: 0 },
       proteinHistory: [],
       health: { lastSyncAt: null, lastImportId: '', latest: {}, history: [] },
       measurements: [],
+      measurementTombstones: [],
       weeks: {},
       history: []
     };
@@ -169,10 +170,35 @@
     const normalizeState = (value) => {
       const base = cloneDefault();
       if (!value || typeof value !== 'object') return base;
+      const bodyKeys = ['height', 'weight', 'muscle', 'fat'];
+      const measurementTombstones = (Array.isArray(value.measurementTombstones) ? value.measurementTombstones : [])
+        .filter(item => item && typeof item.id === 'string' && bodyKeys.includes(item.metric))
+        .map(item => ({ id: item.id, metric: item.metric, deletedAt: Number(item.deletedAt || 0) }));
+      const deletedKeys = new Set(measurementTombstones.map(item => `${item.id}\u0000${item.metric}`));
+      const rawMeasurements = Array.isArray(value.measurements)
+        ? value.measurements
+        : (Array.isArray(value.health?.history) ? value.health.history.filter(entry => bodyKeys.some(key => Number(entry?.[key]) > 0)).map(entry => ({ ...entry, source: 'health' })) : []);
+      const measurements = rawMeasurements.map(entry => {
+        const next = { ...entry };
+        bodyKeys.forEach(metric => { if (deletedKeys.has(`${entry.id}\u0000${metric}`)) delete next[metric]; });
+        return next;
+      }).filter(entry => bodyKeys.some(key => Number(entry?.[key]) > 0));
+      const healthHistory = (Array.isArray(value.health?.history) ? value.health.history : []).map(entry => {
+        const next = { ...entry };
+        bodyKeys.forEach(metric => { if (deletedKeys.has(`health-${entry.id}\u0000${metric}`)) delete next[metric]; });
+        return next;
+      });
+      const healthLatest = value.health?.latest && typeof value.health.latest === 'object' ? { ...value.health.latest } : {};
+      bodyKeys.forEach(metric => {
+        if (!deletedKeys.has(`health-${healthLatest.id}\u0000${metric}`)) return;
+        delete healthLatest[metric];
+        const previous = [...healthHistory].reverse().find(entry => Number(entry?.[metric]) > 0);
+        if (previous) healthLatest[metric] = previous[metric];
+      });
       return {
         ...base,
         ...value,
-        schema: 8,
+        schema: 9,
         profile: { ...base.profile, ...(value.profile || {}) },
         protein: { ...base.protein, ...(value.protein || {}) },
         proteinHistory: Array.isArray(value.proteinHistory)
@@ -181,12 +207,11 @@
         health: {
           ...base.health,
           ...(value.health || {}),
-          latest: value.health?.latest && typeof value.health.latest === 'object' ? value.health.latest : {},
-          history: Array.isArray(value.health?.history) ? value.health.history : []
+          latest: healthLatest,
+          history: healthHistory
         },
-        measurements: Array.isArray(value.measurements)
-          ? value.measurements
-          : (Array.isArray(value.health?.history) ? value.health.history.filter(entry => ['height', 'weight', 'muscle', 'fat'].some(key => Number(entry?.[key]) > 0)).map(entry => ({ ...entry, source: 'health' })) : []),
+        measurements,
+        measurementTombstones,
         weeks: value.weeks && typeof value.weeks === 'object' ? value.weeks : {},
         history: Array.isArray(value.history) ? value.history : []
       };
@@ -289,6 +314,17 @@
       return [...entries.values()].sort((a, b) => safeTime(a.timestamp) - safeTime(b.timestamp));
     };
 
+    const mergeMeasurementTombstones = (localItems, remoteItems) => {
+      const entries = new Map();
+      [...(localItems || []), ...(remoteItems || [])].forEach(item => {
+        if (!item?.id || !item?.metric) return;
+        const key = `${item.id}\u0000${item.metric}`;
+        const existing = entries.get(key);
+        if (!existing || Number(item.deletedAt || 0) >= Number(existing.deletedAt || 0)) entries.set(key, { ...item });
+      });
+      return [...entries.values()];
+    };
+
     const mergeProteinHistory = (localHistory, remoteHistory) => {
       const days = new Map();
       [...(localHistory || []), ...(remoteHistory || [])].forEach(entry => {
@@ -316,11 +352,12 @@
       return normalizeState({
         ...older,
         ...newer,
-        schema: 8,
+        schema: 9,
         updatedAt: Math.max(safeTime(local.updatedAt), safeTime(remote.updatedAt)),
         weeks: mergeWeeks(local.weeks, remote.weeks, local.updatedAt, remote.updatedAt),
         history: mergeHistory(local.history, remote.history),
         measurements: mergeMeasurements(local.measurements, remote.measurements),
+        measurementTombstones: mergeMeasurementTombstones(local.measurementTombstones, remote.measurementTombstones),
         proteinHistory,
         protein: latestProtein ? { date: latestProtein.date, grams: latestProtein.grams } : newer.protein,
         health: {
@@ -382,7 +419,7 @@
           changed = true;
         });
       });
-      return changed ? { ...state, schema: 8, history: mergeHistory(history, []), updatedAt: Math.max(Date.now(), safeTime(state.updatedAt)) } : state;
+      return changed ? { ...state, schema: 9, history: mergeHistory(history, []), updatedAt: Math.max(Date.now(), safeTime(state.updatedAt)) } : state;
     };
 
     const saveRecoverySnapshot = state => {
@@ -461,19 +498,23 @@
     };
 
     const applyHealthPayload = (state, raw) => {
-      const entry = normalizeHealthPayload(raw);
-      if (!entry || state.health?.lastImportId === entry.id) return state;
+      const incomingEntry = normalizeHealthPayload(raw);
+      if (!incomingEntry || state.health?.lastImportId === incomingEntry.id) return state;
+      const measurementId = `health-${incomingEntry.id}`;
+      const deletedMetrics = new Set((state.measurementTombstones || []).filter(item => item.id === measurementId).map(item => item.metric));
+      const entry = { ...incomingEntry };
+      deletedMetrics.forEach(metric => { delete entry[metric]; });
       const previousHealth = state.health || {};
       const previousHistory = Array.isArray(previousHealth.history) ? previousHealth.history : [];
       const history = [...previousHistory.filter(item => item.id !== entry.id), entry]
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       const hasBodyMetrics = ['height', 'weight', 'muscle', 'fat'].some(key => Number(entry[key]) > 0);
       const measurements = hasBodyMetrics
-        ? mergeMeasurements(state.measurements, [{ id: `health-${entry.id}`, timestamp: entry.timestamp, source: 'health', height: entry.height, weight: entry.weight, muscle: entry.muscle, fat: entry.fat }])
+        ? mergeMeasurements(state.measurements, [{ id: measurementId, timestamp: entry.timestamp, source: 'health', height: entry.height, weight: entry.weight, muscle: entry.muscle, fat: entry.fat }])
         : (state.measurements || []);
       return {
         ...state,
-        schema: 8,
+        schema: 9,
         updatedAt: Date.now(),
         profile: {
           ...state.profile,
@@ -830,7 +871,7 @@
       </div>;
     }
 
-    function MiniLineChart({ points, color = '#8dfc63', suffix = '', emptyText = 'Данные появятся после первой завершённой тренировки' }) {
+    function MiniLineChart({ points, color = '#8dfc63', suffix = '', emptyText = 'Данные появятся после первой завершённой тренировки', onPointClick }) {
       if (!points.length) return <div className="grid h-44 place-items-center rounded-2xl border border-dashed border-line px-5 text-center text-sm text-muted">{emptyText}</div>;
       const width = Math.max(340, points.length * 72), height = 170, padX = 28, padY = 24;
       const values = points.map(p => Number(p.value || 0));
@@ -840,11 +881,11 @@
       return <div className="overflow-x-auto rounded-2xl bg-black/20 p-2 hide-scrollbar"><svg viewBox={`0 0 ${width} ${height}`} className="h-44" style={{ width: `${width}px`, minWidth: '100%' }} role="img" aria-label="График прогресса">
         {[0,1,2,3].map(i => <line key={i} x1="18" x2={width - 12} y1={25 + i * 40} y2={25 + i * 40} stroke="rgba(255,255,255,.07)" />)}
         {coords.length > 1 && <polyline fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" points={coords.map(p => `${p.x},${p.y}`).join(' ')} />}
-        {coords.map((p, i) => <g key={i}><circle cx={p.x} cy={p.y} r="6" fill="#0a0d0f" stroke={color} strokeWidth="4"/><text x={p.x} y={Math.max(13, p.y - 12)} fill="white" textAnchor="middle" fontSize="11" fontWeight="800">{formatNumber(p.value, 1)}{suffix}</text><text x={p.x} y={height - 5} fill="#8d9aa3" textAnchor="middle" fontSize="9">{p.label}</text></g>)}
+        {coords.map((p, i) => <g key={p.id || i} role={onPointClick ? 'button' : undefined} tabIndex={onPointClick ? 0 : undefined} aria-label={onPointClick ? `Удалить значение ${formatNumber(p.value, 2)}${suffix} за ${p.label}` : undefined} onClick={onPointClick ? () => onPointClick(p) : undefined} onKeyDown={onPointClick ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onPointClick(p); } } : undefined} className={onPointClick ? 'cursor-pointer outline-none' : ''}><circle cx={p.x} cy={p.y} r={onPointClick ? 18 : 6} fill={onPointClick ? 'transparent' : '#0a0d0f'} /><circle cx={p.x} cy={p.y} r="6" fill="#0a0d0f" stroke={color} strokeWidth="4"/><text x={p.x} y={Math.max(13, p.y - 12)} fill="white" textAnchor="middle" fontSize="11" fontWeight="800" pointerEvents="none">{formatNumber(p.value, 1)}{suffix}</text><text x={p.x} y={height - 5} fill="#8d9aa3" textAnchor="middle" fontSize="9" pointerEvents="none">{p.label}</text></g>)}
       </svg></div>;
     }
 
-    function ProgressView({ data }) {
+    function ProgressView({ data, deleteMeasurementMetric }) {
       const allExercises = DAYS.flatMap(d => d.exercises);
       const [selected, setSelected] = useState(allExercises[0].id);
       const [bodyMetric, setBodyMetric] = useState('weight');
@@ -855,7 +896,7 @@
       const weekMap = history.reduce((acc, h) => { acc[h.weekKey] = (acc[h.weekKey] || 0) + Number(h.tonnage || 0); return acc; }, {});
       const tonnagePoints = Object.entries(weekMap).sort(([a],[b]) => a.localeCompare(b)).map(([week, value]) => ({ value, label: week.slice(5).split('-').reverse().join('.') }));
       const bodyMetrics = { weight: { label: 'Вес', unit: ' кг' }, muscle: { label: 'Скелетные мышцы', unit: ' кг' }, fat: { label: 'Процент жира', unit: '%' }, height: { label: 'Рост', unit: ' см' } };
-      const bodyPoints = [...(data.measurements || [])].filter(item => Number(item?.[bodyMetric]) > 0).sort((a,b) => safeTime(a.timestamp) - safeTime(b.timestamp)).map(item => ({ value: Number(item[bodyMetric]), label: new Date(item.timestamp).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) }));
+      const bodyPoints = [...(data.measurements || [])].filter(item => Number(item?.[bodyMetric]) > 0).sort((a,b) => safeTime(a.timestamp) - safeTime(b.timestamp)).map(item => ({ id: item.id, timestamp: item.timestamp, source: item.source, value: Number(item[bodyMetric]), label: new Date(item.timestamp).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) }));
       const proteinDays = mergeProteinHistory(data.proteinHistory, data.protein?.date ? [{ ...data.protein, updatedAt: data.updatedAt }] : []);
       const proteinPoints = proteinDays.map(item => ({ value: Number(item.grams || 0), label: item.date.slice(5).split('-').reverse().join('.') }));
       const proteinGoal = Number(data.profile.proteinGoal || 120);
@@ -873,8 +914,8 @@
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Показатели тела</p><h2 className="mt-1 font-black">Динамика замеров</h2></div><Icon name="person" className="text-cyan" /></div>
           <select value={bodyMetric} onChange={event => setBodyMetric(event.target.value)} className="mt-4 h-12 w-full rounded-2xl border border-line bg-[#0b0f11] px-4 text-sm font-bold outline-none focus:border-cyan">{Object.entries(bodyMetrics).map(([key, metric]) => <option key={key} value={key}>{metric.label}</option>)}</select>
-          <div className="mt-4"><MiniLineChart points={bodyPoints} color="#3fd6ff" suffix={bodyMetrics[bodyMetric].unit} emptyText="Сохрани ручной замер или импортируй его из Apple Health" /></div>
-          <p className="mt-3 text-xs leading-relaxed text-muted">В график попадают все ручные замеры и импорты Apple Health. Старые значения не удаляются.</p>
+          <div className="mt-4"><MiniLineChart points={bodyPoints} color="#3fd6ff" suffix={bodyMetrics[bodyMetric].unit} emptyText="Сохрани ручной замер или импортируй его из Apple Health" onPointClick={point => deleteMeasurementMetric(point.id, bodyMetric)} /></div>
+          <p className="mt-3 text-xs leading-relaxed text-muted"><Icon name="hand-pointer" className="mr-2 text-cyan"/>Нажми на неправильную точку графика, чтобы удалить только этот замер. Остальные показатели сохранятся.</p>
         </Card>
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-neon">Питание</p><h2 className="mt-1 font-black">Белок по дням</h2></div><Icon name="utensils" className="text-neon" /></div>
@@ -1086,7 +1127,7 @@
         <Card className="standalone-hidden p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="mobile-screen-button" /></div><div><h2 className="font-black">Добавить на экран «Домой»</h2><div className="mt-2 space-y-2 text-sm leading-relaxed text-muted"><p><b className="text-white">iPhone:</b> открой в Safari → «Поделиться» → «На экран Домой».</p><p><b className="text-white">Android:</b> меню Chrome → «Установить приложение» или «Добавить на главный экран».</p></div></div></div></Card>
         <Card className="p-5"><h2 className="font-black">Резервная копия</h2><p className="mt-1 text-sm text-muted">Экспортируй журнал в JSON или восстанови его из файла.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={exportData} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="download" className="mr-2 text-cyan"/>Экспорт</button><button onClick={() => fileRef.current?.click()} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="upload" className="mr-2 text-neon"/>Импорт</button></div><input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importData}/></Card>
         <button onClick={resetData} className="h-14 w-full rounded-2xl border border-red-400/20 bg-red-400/[.06] font-bold text-red-300">Сбросить весь журнал</button>
-        <p className="pb-2 text-center text-xs text-muted">E-GYM v8 · защищённое сохранение данных</p>
+        <p className="pb-2 text-center text-xs text-muted">E-GYM v9 · защищённое сохранение данных</p>
       </div>;
     }
 
@@ -1129,7 +1170,7 @@
       const mutate = (updater) => setData(prev => {
         const candidate = typeof updater === 'function' ? updater(prev) : updater;
         if (candidate === prev) return prev;
-        const next = { ...candidate, schema: 8, updatedAt: Date.now() };
+        const next = { ...candidate, schema: 9, updatedAt: Date.now() };
         dataRef.current = next;
         persistState(next, true);
         return next;
@@ -1207,6 +1248,34 @@
         const measurement = { id: `manual-${Date.now()}`, timestamp, source: 'manual', height: profile.height, weight: profile.weight, muscle: profile.muscle, fat: profile.fat };
         return { ...prev, profile, measurements: mergeMeasurements(prev.measurements, [measurement]) };
       });
+      const deleteMeasurementMetric = (measurementId, metric) => {
+        const labels = { height: ['Рост', ' см'], weight: ['Вес', ' кг'], muscle: ['Скелетные мышцы', ' кг'], fat: ['Процент жира', '%'] };
+        const measurement = dataRef.current.measurements?.find(item => item.id === measurementId);
+        if (!measurement || !labels[metric] || Number(measurement[metric]) <= 0) return;
+        const value = `${formatNumber(measurement[metric], 2)}${labels[metric][1]}`;
+        if (!window.confirm(`Удалить точку «${labels[metric][0]}: ${value}» от ${formatDateTime(measurement.timestamp)}?\n\nУдалится только этот показатель. Тренировки и остальные данные останутся.`)) return;
+        mutate(prev => {
+          const measurementTombstones = mergeMeasurementTombstones(prev.measurementTombstones, [{ id: measurementId, metric, deletedAt: Date.now() }]);
+          const measurements = (prev.measurements || []).map(item => {
+            if (item.id !== measurementId) return item;
+            const next = { ...item }; delete next[metric]; return next;
+          }).filter(item => ['height', 'weight', 'muscle', 'fat'].some(key => Number(item?.[key]) > 0));
+          const previous = [...measurements].filter(item => Number(item?.[metric]) > 0).sort((a, b) => safeTime(b.timestamp) - safeTime(a.timestamp))[0];
+          const profile = { ...prev.profile, [metric]: previous ? Number(previous[metric]) : '' };
+          const sourceHealthId = measurementId.startsWith('health-') ? measurementId.slice(7) : '';
+          const healthHistory = (prev.health?.history || []).map(item => {
+            if (!sourceHealthId || item.id !== sourceHealthId) return item;
+            const next = { ...item }; delete next[metric]; return next;
+          });
+          const healthLatest = { ...(prev.health?.latest || {}) };
+          if (sourceHealthId && healthLatest.id === sourceHealthId) {
+            delete healthLatest[metric];
+            const previousHealth = [...healthHistory].reverse().find(item => Number(item?.[metric]) > 0);
+            if (previousHealth) healthLatest[metric] = previousHealth[metric];
+          }
+          return { ...prev, profile, measurements, measurementTombstones, health: { ...prev.health, latest: healthLatest, history: healthHistory } };
+        });
+      };
 
       const dayStats = useMemo(() => {
         const result = {};
@@ -1362,7 +1431,7 @@
         <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
           {tab === 'workout' && <WorkoutView data={data} selectedDay={selectedDay} setSelectedDay={setSelectedDay} weekKey={weekKey} updateExercise={updateExercise} updateWorkoutNote={updateWorkoutNote} addProtein={addProtein} resetProtein={resetProtein} startTimer={startTimer} analysisOpen={analysisOpen} setAnalysisOpen={setAnalysisOpen} />}
           {tab === 'plan' && <PlanView data={data} weekKey={weekKey} onOpenDay={openDay} />}
-          {tab === 'progress' && <ProgressView data={data} />}
+          {tab === 'progress' && <ProgressView data={data} deleteMeasurementMetric={deleteMeasurementMetric} />}
           {tab === 'profile' && <ProfileView data={data} cloudStatus={cloudStatus} openCloud={() => setCloudOpen(true)} openHealth={() => setHealthOpen(true)} updateProfile={updateProfile} exportData={exportData} importData={importData} resetData={resetData} />}
         </main>
 
