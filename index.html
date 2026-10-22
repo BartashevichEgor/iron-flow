@@ -154,7 +154,7 @@
     };
 
     const DEFAULT_STATE = {
-      schema: 7,
+      schema: 8,
       updatedAt: Date.now(),
       profile: { height: 188, weight: 79.6, muscle: 34.6, fat: 19, proteinGoal: 120 },
       protein: { date: todayKey(), grams: 0 },
@@ -172,7 +172,7 @@
       return {
         ...base,
         ...value,
-        schema: 7,
+        schema: 8,
         profile: { ...base.profile, ...(value.profile || {}) },
         protein: { ...base.protein, ...(value.protein || {}) },
         proteinHistory: Array.isArray(value.proteinHistory)
@@ -316,7 +316,7 @@
       return normalizeState({
         ...older,
         ...newer,
-        schema: 7,
+        schema: 8,
         updatedAt: Math.max(safeTime(local.updatedAt), safeTime(remote.updatedAt)),
         weeks: mergeWeeks(local.weeks, remote.weeks, local.updatedAt, remote.updatedAt),
         history: mergeHistory(local.history, remote.history),
@@ -382,7 +382,7 @@
           changed = true;
         });
       });
-      return changed ? { ...state, schema: 7, history: mergeHistory(history, []), updatedAt: Math.max(Date.now(), safeTime(state.updatedAt)) } : state;
+      return changed ? { ...state, schema: 8, history: mergeHistory(history, []), updatedAt: Math.max(Date.now(), safeTime(state.updatedAt)) } : state;
     };
 
     const saveRecoverySnapshot = state => {
@@ -440,8 +440,9 @@
       if (fat != null && fat > 0 && fat <= 1) fat *= 100;
       let height = healthNumber(value.height);
       if (height != null && height > 0 && height < 3) height *= 100;
+      const sourceId = String(value.id || 'health');
       const entry = {
-        id: String(value.id || `${timestamp}-${value.steps ?? ''}-${value.weight ?? ''}`),
+        id: `${sourceId}::${timestamp}`,
         timestamp,
         height,
         weight: healthNumber(value.weight),
@@ -472,7 +473,7 @@
         : (state.measurements || []);
       return {
         ...state,
-        schema: 7,
+        schema: 8,
         updatedAt: Date.now(),
         profile: {
           ...state.profile,
@@ -964,8 +965,8 @@
   }
 }`;
       const sample = `{
-  "id": "Текущая дата",
-  "timestamp": "Текущая дата",
+  "id": "Дата и время: yyyy-MM-dd'T'HH:mm:ssXXX",
+  "timestamp": "Та же отформатированная дата и время",
   "height": "Рост в сантиметрах",
   "weight": "Вес",
   "fat": "Процент жира",
@@ -976,6 +977,17 @@
   "sleepHours": "Продолжительность сна в часах",
   "workoutMinutes": "Длительность тренировок в минутах"
 }`;
+      const healthSetup = [
+        ['weight', 'Вес', 'Последний образец за всё время', 'кг'],
+        ['height', 'Рост', 'Последний образец за всё время', 'см'],
+        ['fat', 'Процент жира', 'Последний образец за всё время', '%'],
+        ['muscle', 'Скелетные мышцы', 'Только если источник отдаёт именно этот показатель', 'кг'],
+        ['steps', 'Шаги', 'Образцы с начала сегодня → сумма', 'шт.'],
+        ['activeEnergy', 'Активная энергия', 'Образцы с начала сегодня → сумма', 'ккал'],
+        ['restingHeartRate', 'Пульс покоя', 'Последний образец за всё время', 'уд/мин'],
+        ['sleepHours', 'Сон', 'Стадии сна за 24 часа → сумма длительности ÷ 3600', 'ч'],
+        ['workoutMinutes', 'Тренировки', 'Тренировки с начала сегодня → сумма длительности', 'мин']
+      ];
       const latest = data.health?.latest || {};
       return <Modal open={open} onClose={onClose} wide>
         <p className="text-xs font-black uppercase tracking-[.18em] text-neon">iPhone · Команды · Здоровье</p>
@@ -1003,16 +1015,31 @@
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Шаг 3</p><h3 className="mt-1 font-black">Создай команду на iPhone</h3></div>{importUrl && <a href="shortcuts://create-shortcut" className="grid h-11 place-items-center rounded-xl bg-cyan px-4 text-sm font-black text-ink">Открыть</a>}</div>
           <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/75">
             <li><b className="text-white">1.</b> В «Командах» нажми <b className="text-white">+</b> и назови команду «E-GYM Health».</li>
-            <li><b className="text-white">2.</b> Для каждого нужного показателя добавь «Найти образцы Здоровья» и «Получить сведения об образцах Здоровья». Для роста, веса, жира, скелетных мышц и пульса выбери самый новый результат; для шагов и активной энергии за сегодня — сумму. Укажи единицы: рост — см, вес и мышцы — кг, жир — %.</li>
-            <li><b className="text-white">3.</b> Добавь действие <b className="text-white">URL</b> и вставь секретный адрес выше.</li>
-            <li><b className="text-white">4.</b> Добавь «Получить содержимое URL»: метод <b className="text-white">PUT</b>, тело запроса <b className="text-white">JSON</b>. Используй названия полей из примера ниже и подставь переменные из «Здоровья».</li>
-            <li><b className="text-white">5.</b> Запусти команду и разреши доступ к выбранным данным. Затем открой E-GYM — импорт появится в профиле.</li>
+            <li><b className="text-white">2.</b> Для каждого показателя добавь отдельную пару действий: «Найти образцы Здоровья» → «Получить сведения об образцах Здоровья». Настройки перечислены ниже.</li>
+            <li><b className="text-white">3.</b> Добавь «Текущая дата» → «Форматировать дату» с форматом <code className="text-cyan">yyyy-MM-dd'T'HH:mm:ssXXX</code>. Эту переменную поставь одновременно в <code className="text-cyan">id</code> и <code className="text-cyan">timestamp</code>. Время до секунд обязательно — иначе повторный импорт за день станет дублем.</li>
+            <li><b className="text-white">4.</b> Добавь действие <b className="text-white">URL</b> и вставь секретный адрес выше.</li>
+            <li><b className="text-white">5.</b> Добавь «Получить содержимое URL»: метод <b className="text-white">PUT</b>, тело запроса <b className="text-white">JSON</b>. Названия полей пиши точно как в примере, а значениями выбирай синие переменные из действий «Здоровье».</li>
+            <li><b className="text-white">6.</b> Запусти команду вручную один раз и разреши доступ к данным и сети. Затем открой E-GYM — импорт появится в профиле.</li>
           </ol>
+          <div className="mt-4 space-y-2">{healthSetup.map(([field, label, query, unit]) => <div key={field} className="rounded-2xl border border-white/5 bg-black/20 p-3"><div className="flex items-center justify-between gap-3"><b className="text-sm">{label}</b><code className="rounded-lg bg-cyan/10 px-2 py-1 text-[10px] font-black text-cyan">{field}</code></div><p className="mt-1 text-xs leading-relaxed text-muted">{query} · единица: {unit}</p></div>)}</div>
+          <div className="mt-3 rounded-2xl border border-amber-300/15 bg-amber-300/[.06] p-3 text-xs leading-relaxed text-amber-100/80"><Icon name="triangle-exclamation" className="mr-2 text-amber-300"/><b>Мышцы:</b> не подставляй «Безжировую массу тела» в поле <code>muscle</code> — это другой показатель. Если весы или их приложение не записывают именно скелетные мышцы в Apple Health, оставь поле без переменной и редактируй мышцы вручную в профиле E-GYM.</div>
+          <div className="mt-3 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-3 text-xs leading-relaxed text-white/75"><b className="text-cyan">Сон:</b> складывай длительность только стадий «Основной», «Глубокий» и REM за последние 24 часа; «Бодрствование» и «В постели» не включай. Если действие возвращает секунды, раздели сумму на 3600 перед полем <code>sleepHours</code>.</div>
           <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-muted">Необязательные поля можно не добавлять.</span><button onClick={() => copy(sample, 'sample')} className="h-10 rounded-xl bg-white/8 px-3 text-xs font-bold text-cyan">{copied === 'sample' ? 'Скопировано' : 'Поля JSON'}</button></div>
           <pre className="mt-3 max-h-56 overflow-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/70">{sample}</pre>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-4 text-xs leading-relaxed text-muted"><Icon name="circle-info" className="mr-2 text-cyan"/>Автоматизацию можно добавить после успешного ручного запуска: «Команды» → «Автоматизация» → «Время суток» → ежедневно → «Выполнить немедленно» → запустить «E-GYM Health».</div>
+        <div className="mt-4 rounded-2xl border border-neon/20 bg-neon/[.05] p-4">
+          <p className="text-xs font-black uppercase tracking-wider text-neon">Шаг 4 · автоматическая отправка</p><h3 className="mt-1 font-black">Три запуска в день</h3>
+          <div className="mt-3 flex flex-wrap gap-2">{['08:05', '15:00', '22:45'].map(time => <span key={time} className="rounded-full bg-neon/10 px-3 py-1.5 text-xs font-black text-neon">{time}</span>)}</div>
+          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/75">
+            <li><b className="text-white">1.</b> «Быстрые команды» → «Автоматизация» → <b className="text-white">+</b> → «Время суток».</li>
+            <li><b className="text-white">2.</b> Укажи время, повтор «Ежедневно» и выбери «Выполнять немедленно». На старых версиях iOS выключи «Спрашивать до запуска».</li>
+            <li><b className="text-white">3.</b> Выбери «Новая пустая автоматизация» → действие «Запустить быструю команду» → <b className="text-white">E-GYM Health</b> → «Готово».</li>
+            <li><b className="text-white">4.</b> Повтори эти шаги для остальных двух времён. В настройках команды включи «Разрешить выполнение при блокировке», если этот переключатель отображается.</li>
+          </ol>
+          <p className="mt-3 text-xs leading-relaxed text-muted">iOS не даёт одному триггеру «Время суток» повторяться каждые несколько часов, поэтому нужны отдельные автоматизации. Три отправки достаточно: шаги и энергия накопительные, а вес и состав тела обычно меняются реже.</p>
+        </div>
+        <div className="mt-3 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-4 text-xs leading-relaxed text-muted"><Icon name="circle-info" className="mr-2 text-cyan"/>Если E-GYM закрыт, команда всё равно положит пакет в Firebase. Приложение заберёт его сразу при следующем открытии. Сам сайт на GitHub Pages не может просыпаться в фоне iPhone — фоновой отправкой занимается именно «Автоматизация» iOS.</div>
         <button onClick={onClose} className="mt-5 h-14 w-full rounded-2xl bg-white/8 font-black">Готово</button>
       </Modal>;
     }
@@ -1059,7 +1086,7 @@
         <Card className="standalone-hidden p-5"><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neon/10 text-neon"><Icon name="mobile-screen-button" /></div><div><h2 className="font-black">Добавить на экран «Домой»</h2><div className="mt-2 space-y-2 text-sm leading-relaxed text-muted"><p><b className="text-white">iPhone:</b> открой в Safari → «Поделиться» → «На экран Домой».</p><p><b className="text-white">Android:</b> меню Chrome → «Установить приложение» или «Добавить на главный экран».</p></div></div></div></Card>
         <Card className="p-5"><h2 className="font-black">Резервная копия</h2><p className="mt-1 text-sm text-muted">Экспортируй журнал в JSON или восстанови его из файла.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={exportData} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="download" className="mr-2 text-cyan"/>Экспорт</button><button onClick={() => fileRef.current?.click()} className="h-12 rounded-2xl bg-white/8 font-bold"><Icon name="upload" className="mr-2 text-neon"/>Импорт</button></div><input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importData}/></Card>
         <button onClick={resetData} className="h-14 w-full rounded-2xl border border-red-400/20 bg-red-400/[.06] font-bold text-red-300">Сбросить весь журнал</button>
-        <p className="pb-2 text-center text-xs text-muted">E-GYM v7 · защищённое сохранение данных</p>
+        <p className="pb-2 text-center text-xs text-muted">E-GYM v8 · защищённое сохранение данных</p>
       </div>;
     }
 
@@ -1102,7 +1129,7 @@
       const mutate = (updater) => setData(prev => {
         const candidate = typeof updater === 'function' ? updater(prev) : updater;
         if (candidate === prev) return prev;
-        const next = { ...candidate, schema: 7, updatedAt: Date.now() };
+        const next = { ...candidate, schema: 8, updatedAt: Date.now() };
         dataRef.current = next;
         persistState(next, true);
         return next;
