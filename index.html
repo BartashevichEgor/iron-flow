@@ -60,62 +60,46 @@
     const STORAGE_KEY = 'ironflow_state_v3';
     const CLOUD_KEY = 'ironflow_cloud_v1';
     const RECOVERY_KEY = 'ironflow_recovery_v1';
+    const warmup = dayId => ({ id: `${dayId}-warmup`, name: 'Разминка (Кардио)', detail: 'Дорожка — спокойный темп', sets: 1, min: 5, max: 5, unit: 'мин', load: '5 мин', type: 'cardio', kind: 'cardio', cardioRole: 'warmup', rest: 0, multiplier: 0, cue: 'Пять минут лёгкой ходьбы перед силовой частью.' });
+    const finish = (dayId, minutes, detail = 'Ходьба в горку') => ({ id: `${dayId}-finish`, name: 'Финиш (Кардио)', detail, sets: 1, min: minutes[0], max: minutes[1], unit: 'мин', load: `${minutes[0]}–${minutes[1]} мин`, type: 'cardio', kind: 'cardio', cardioRole: 'finish', rest: 0, multiplier: 0, cue: 'Спокойная ходьба: контролируй дыхание, уклон и скорость.' });
     const DAYS = [
-      {
-        id: 'mon', weekday: 1, short: 'ПН', label: 'Понедельник', title: 'Грудь + Трицепс + Пресс', accent: 'neon',
-        exercises: [
-          { id: 'mon-1', name: 'Жим гантелей лёжа', detail: 'Горизонтальная скамья', sets: 3, min: 10, max: 12, load: '12–14 кг', kind: 'dumbbell', multiplier: 2, cue: 'Лопатки сведены, поясница нейтральна' },
-          { id: 'mon-2', name: 'Сведение рук «Бабочка»', detail: 'Тренажёр', sets: 3, min: 12, max: 12, load: '25–30 кг', kind: 'machine', multiplier: 1, cue: 'Плечи опущены, движение без рывка' },
-          { id: 'mon-3', name: 'Жим в Смите / Отжимания', detail: 'Выбери комфортный вариант', sets: 3, min: 8, max: 10, load: '20 кг', kind: 'machine', multiplier: 1, cue: 'Не прогибай поясницу, держи корпус собранным' },
-          { id: 'mon-4', name: 'Разгибание рук с канатом', detail: 'Верхний блок', sets: 3, min: 12, max: 12, load: '15–20 кг', kind: 'machine', multiplier: 1, cue: 'Локти остаются у корпуса' },
-          { id: 'mon-5', name: 'Скручивания на пресс', detail: 'Собственный вес', sets: 3, min: 15, max: 20, load: 'без веса', kind: 'bodyweight', multiplier: 0, cue: 'Поднимай грудной отдел, не тяни шею' }
-        ]
-      },
-      {
-        id: 'tue', weekday: 2, short: 'ВТ', label: 'Вторник', title: 'Спина + Бицепс + Поясница', accent: 'cyan',
-        exercises: [
-          { id: 'tue-1', name: 'Верхняя тяга к груди', detail: 'Широкий хват', sets: 3, min: 10, max: 12, load: '35 кг', kind: 'machine', multiplier: 1, cue: 'Тяни грудью вверх, не уводи корпус назад' },
-          { id: 'tue-2', name: 'Нижняя тяга к поясу', detail: 'Сидя в блочном тренажёре', sets: 3, min: 10, max: 12, load: '30 кг', kind: 'machine', multiplier: 1, cue: 'Спина нейтральна, без раскачки' },
-          { id: 'tue-3', name: 'Тяга гантели одной рукой', detail: 'В наклоне с опорой', sets: 3, min: 10, max: 10, load: '8–10 кг', kind: 'dumbbell', multiplier: 2, cue: 'Обязательно используй опору, таз держи ровно' },
-          { id: 'tue-4', name: 'Сгибание рук на бицепс', detail: 'Гантели или блок', sets: 3, min: 10, max: 12, load: '8 кг', kind: 'dumbbell', multiplier: 2, cue: 'Не раскачивай корпус' },
-          { id: 'tue-5', name: 'Наклонная гиперэкстензия', detail: 'Без переразгибания', sets: 3, min: 12, max: 12, load: 'блин 10 кг', kind: 'dumbbell', multiplier: 1, cue: 'Остановись на прямой линии корпуса' }
-        ]
-      },
-      {
-        id: 'thu', weekday: 4, short: 'ЧТ', label: 'Четверг', title: 'Ноги + Пресс', accent: 'neon',
-        exercises: [
-          { id: 'thu-1', name: 'Жим ногами', detail: 'Тренажёр', sets: 3, min: 12, max: 15, load: '55 кг', kind: 'machine', multiplier: 1, cue: 'Таз прижат, колени идут по линии стоп' },
-          { id: 'thu-2', name: 'Сгибание ног', detail: 'Задняя поверхность бедра', sets: 3, min: 12, max: 12, load: '35 кг', kind: 'machine', multiplier: 1, cue: 'Двигайся плавно, без отрыва таза' },
-          { id: 'thu-3', name: 'Разгибание ног', detail: 'Квадрицепс', sets: 3, min: 12, max: 12, load: '30 кг', kind: 'machine', multiplier: 1, cue: 'Не бросай вес в нижней точке' },
-          { id: 'thu-4', name: 'Подъём на носки', detail: 'Икры', sets: 3, min: 15, max: 20, load: '10 кг', kind: 'dumbbell', multiplier: 1, cue: 'Полная амплитуда без пружинящих движений' },
-          { id: 'thu-5', name: 'Скручивания с блином', detail: 'Пресс', sets: 3, min: 20, max: 20, load: '10 кг', kind: 'dumbbell', multiplier: 1, cue: 'Не тяни голову и не перегружай поясницу' }
-        ]
-      },
-      {
-        id: 'fri', weekday: 5, short: 'ПТ', label: 'Пятница', title: 'Плечи + Кор', accent: 'cyan',
-        exercises: [
-          { id: 'fri-1', name: 'Жим гантелей сидя', detail: 'С опорой спины', sets: 3, min: 10, max: 12, load: '8–10 кг', kind: 'dumbbell', multiplier: 2, cue: 'Спина прижата, не прогибайся под весом' },
-          { id: 'fri-2', name: 'Махи через стороны', detail: 'Гантели', sets: 3, min: 12, max: 12, load: '6–8 кг', kind: 'dumbbell', multiplier: 2, cue: 'Поднимай локти, не раскачивай корпус' },
-          { id: 'fri-3', name: 'Обратная «Бабочка»', detail: 'Задняя дельта', sets: 3, min: 12, max: 12, load: '20–25 кг', kind: 'machine', multiplier: 1, cue: 'Шея длинная, лопатки двигаются плавно' },
-          { id: 'fri-4', name: 'Боковая планка', detail: 'На каждую сторону', sets: 3, min: 30, max: 30, unit: 'сек/сторона', load: 'собственный вес', kind: 'bodyweight', multiplier: 0, cue: 'Тело в одной линии, таз не провисает' },
-          { id: 'fri-5', name: 'Классическая планка', detail: 'Статическое удержание', sets: 3, min: 45, max: 60, unit: 'сек', load: 'собственный вес', kind: 'bodyweight', multiplier: 0, cue: 'Рёбра собраны, поясница нейтральна' }
-        ]
-      }
+      { id: 'mon', weekday: 1, short: 'ПН', label: 'Понедельник', title: 'Верх А — Силовой жим + Спина', accent: 'neon', exercises: [
+        warmup('mon'),
+        { id: 'mon-bench-heavy', name: 'Жим штанги лёжа (тяжёлый)', detail: 'Силовая работа', sets: 4, min: 5, max: 6, load: '50 кг', startWeight: 50, step: 2.5, rest: 180, type: 'strength', kind: 'barbell', multiplier: 1, cue: 'Лопатки сведены, стопы упираются в пол, траектория стабильна.' },
+        { id: 'mon-row-low', name: 'Нижняя тяга к поясу', detail: 'Блочный тренажёр', sets: 3, min: 10, max: 12, load: '32 кг', startWeight: 32, step: 2, rest: 90, type: 'hypertrophy', kind: 'machine', multiplier: 1, cue: 'Тяни локти к поясу, не раскачивай корпус.' },
+        { id: 'mon-db-incline', name: 'Жим гантелей под углом 30°', detail: 'Наклонная скамья', sets: 3, min: 10, max: 12, load: '15 кг', startWeight: 15, step: 2.5, rest: 90, type: 'hypertrophy', kind: 'dumbbell', multiplier: 2, cue: 'Лопатки собраны, не своди гантели рывком.' },
+        { id: 'mon-one-arm-row', name: 'Тяга гантели одной рукой', detail: 'С опорой', sets: 3, min: 10, max: 12, load: '15 кг', startWeight: 15, step: 2.5, rest: 60, type: 'hypertrophy', kind: 'dumbbell', multiplier: 2, cue: 'Опирайся свободной рукой, таз и поясница стабильны.' },
+        { id: 'mon-lateral-raise', name: 'Махи гантелями в стороны', detail: 'Средняя дельта', sets: 3, min: 15, max: 15, load: '6 кг', startWeight: 6, step: 1, rest: 60, type: 'hypertrophy', kind: 'dumbbell', multiplier: 2, cue: 'Поднимай через стороны без раскачки корпуса.' }
+      ] },
+      { id: 'tue', weekday: 2, short: 'ВТ', label: 'Вторник', title: 'Низ — Метаболическая сушка + Кор', accent: 'cyan', exercises: [
+        warmup('tue'),
+        { id: 'tue-leg-press-cut', name: 'Жим ногами (сушка)', detail: 'Короткий отдых', sets: 3, min: 20, max: 20, load: '50 кг', startWeight: 50, rest: 45, type: 'metabolic_cut', kind: 'machine', multiplier: 1, cue: 'Таз прижат, колени по линии стоп, без блокировки коленей.' },
+        { id: 'tue-leg-extension-cut', name: 'Разгибание ног сидя', detail: 'Квадрицепс', sets: 3, min: 18, max: 20, load: '25 кг', startWeight: 25, rest: 60, type: 'metabolic_cut', kind: 'machine', multiplier: 1, cue: 'Работай плавно, не бросай вес внизу.' },
+        { id: 'tue-leg-curl-cut', name: 'Сгибание ног', detail: 'Задняя поверхность', sets: 3, min: 18, max: 20, load: '30 кг', startWeight: 30, rest: 60, type: 'metabolic_cut', kind: 'machine', multiplier: 1, cue: 'Таз не отрывай, контролируй возврат.' },
+        { id: 'tue-hyperextension', name: 'Гиперэкстензия', detail: 'Без веса', sets: 3, min: 12, max: 15, load: '0 кг', startWeight: 0, rest: 60, type: 'hypertrophy', kind: 'bodyweight', multiplier: 0, cue: 'Поднимайся до прямой линии, не переразгибай поясницу.' },
+        { id: 'tue-core', name: 'Скручивания + Боковая планка', detail: '20 повторений / 30 сек', sets: 3, min: 20, max: 20, unit: 'повт. / 30с', load: 'кор', rest: 60, type: 'hypertrophy', kind: 'bodyweight', multiplier: 0, cue: 'Скручивай корпус, в планке держи таз на одной линии.' },
+        finish('tue', [20,25], 'Ходьба в горку')
+      ] },
+      { id: 'thu', weekday: 4, short: 'ЧТ', label: 'Четверг', title: 'Верх Б — Технический жим + Плечи + Трицепс', accent: 'neon', exercises: [
+        warmup('thu'),
+        { id: 'thu-bench-pause', name: 'Жим штанги лёжа (технический, с паузой)', detail: 'Пауза на груди', sets: 4, min: 8, max: 10, load: '40 кг', startWeight: 40, step: 2.5, rest: 120, type: 'hypertrophy', kind: 'barbell', multiplier: 1, cue: 'Короткая пауза на груди, локти под контролем.' },
+        { id: 'thu-pec-deck', name: 'Сведение рук «Бабочка»', detail: 'Тренажёр', sets: 3, min: 12, max: 15, load: '40 кг', startWeight: 40, step: 2.5, rest: 60, type: 'hypertrophy', kind: 'machine', multiplier: 1, cue: 'Плечи опущены, движение плавное и контролируемое.' },
+        { id: 'thu-db-shoulder', name: 'Жим гантелей сидя', detail: 'С опорой спины', sets: 3, min: 10, max: 12, load: '10 кг', startWeight: 10, step: 2, rest: 90, type: 'hypertrophy', kind: 'dumbbell', multiplier: 2, cue: 'Спина прижата, не прогибай поясницу.' },
+        { id: 'thu-lateral-drop', name: 'Махи гантелями в стороны', detail: 'Дропсет в последнем подходе', sets: 3, min: 12, max: 15, load: '6 кг', startWeight: 6, step: 1, rest: 60, type: 'hypertrophy', kind: 'dumbbell', multiplier: 2, cue: 'Последний подход — дропсет с чистой техникой.' },
+        { id: 'thu-rope-pushdown', name: 'Разгибание рук с канатом', detail: 'Верхний блок', sets: 3, min: 10, max: 12, load: '24 кг', startWeight: 24, step: 2, rest: 60, type: 'hypertrophy', kind: 'machine', multiplier: 1, cue: 'Локти фиксированы у корпуса.' },
+        finish('thu', [10,10], 'Ходьба в горку')
+      ] },
+      { id: 'fri', weekday: 5, short: 'ПТ', label: 'Пятница', title: 'Верх В — Подтягивания + Широкая спина + Бицепс', accent: 'cyan', exercises: [
+        warmup('fri'),
+        { id: 'fri-band-pullup', name: 'Подтягивания с резинкой', detail: 'Выбери резинку', sets: 4, min: 6, max: 10, load: 'резинка', rest: 120, type: 'band_assisted', kind: 'bodyweight', multiplier: 0, cue: 'Начинай движение лопатками, не раскачивайся.' },
+        { id: 'fri-lat-pulldown', name: 'Верхняя тяга к груди', detail: 'Широкий хват', sets: 3, min: 10, max: 12, load: '44 кг', startWeight: 44, step: 2, rest: 90, type: 'hypertrophy', kind: 'machine', multiplier: 1, cue: 'Тяни к верхней части груди, не запрокидывай корпус.' },
+        { id: 'fri-close-pulldown', name: 'Тяга верхнего блока узким хватом', detail: 'Узкий хват', sets: 3, min: 10, max: 12, load: '35 кг', startWeight: 35, step: 2, rest: 90, type: 'hypertrophy', kind: 'machine', multiplier: 1, cue: 'Локти веди вниз и назад, не дёргай вес.' },
+        { id: 'fri-reverse-pec', name: 'Обратная «Бабочка»', detail: 'Задняя дельта', sets: 3, min: 12, max: 15, load: '20 кг', startWeight: 20, step: 2, rest: 60, type: 'hypertrophy', kind: 'machine', multiplier: 1, cue: 'Шея расслаблена, движение без инерции.' },
+        { id: 'fri-biceps', name: 'Сгибание рук на бицепс', detail: 'Гантели / блок', sets: 3, min: 10, max: 12, load: '10 кг', startWeight: 10, step: 1, rest: 60, type: 'hypertrophy', kind: 'dumbbell', multiplier: 2, cue: 'Локти стабильны, корпус не раскачивается.' },
+        { id: 'fri-hang', name: 'Вис на турнике', detail: 'Декомпрессия', sets: 2, min: 30, max: 30, unit: 'сек', load: '30 сек', rest: 60, type: 'hypertrophy', kind: 'bodyweight', multiplier: 0, cue: 'Плечи активны, не допускай болезненного дискомфорта.' },
+        finish('fri', [15,15], 'Ходьба в горку')
+      ] }
     ];
-
-    DAYS.forEach(day => day.exercises.push({
-      id: `${day.id}-cardio`,
-      name: 'Финишное кардио',
-      detail: 'Дорожка, эллипс или велотренажёр',
-      sets: 1,
-      min: 8,
-      max: 15,
-      unit: 'мин',
-      load: '8–15 мин',
-      kind: 'cardio',
-      multiplier: 0,
-      cue: 'Разговорный темп, без ударной нагрузки и чрезмерного наклона'
-    }));
 
     const TECHNIQUE_TYPES = {
       'mon-1': 'benchPress', 'mon-2': 'pecDeck', 'mon-3': 'smithPress', 'mon-4': 'pushdown', 'mon-5': 'crunch',
@@ -378,7 +362,7 @@
         const entry = entries[exercise.id] || {};
         const reps = Array.isArray(entry.reps) ? entry.reps : [];
         const volume = exercise.multiplier ? Number(entry.weight || 0) * reps.reduce((sum, value) => sum + Number(value || 0), 0) * exercise.multiplier : 0;
-        return { id: exercise.id, name: exercise.name, kind: exercise.kind, unit: exercise.unit || 'повт.', weight: Number(entry.weight || 0), reps, rpe: entry.rpe || '', mode: entry.mode || '', completed: Boolean(entry.completed), volume };
+        return { id: exercise.id, name: exercise.name, type: exercise.type || '', kind: exercise.kind, unit: exercise.unit || 'повт.', weight: Number(entry.weight || 0), reps, rpe: entry.rpe || '', mode: entry.mode || '', band: entry.band || '', incline: entry.incline || '', speed: entry.speed || '', rest: exercise.rest || 0, completed: Boolean(entry.completed), volume };
       });
       const fallbackDate = (() => {
         if (weekKey === getWeekKey()) return new Date().toISOString();
@@ -576,7 +560,7 @@
               <Icon name={done ? 'bell' : 'stopwatch'} className={done ? 'text-neon' : 'text-cyan'} />
               <span>{timer == null ? 'ОТДЫХ' : `${mm}:${ss}`}</span>
             </div>
-            {[60, 90, 120].map(s => <button key={s} onClick={() => start(s)} className="h-10 min-w-[58px] rounded-xl border border-line bg-white/[.04] px-3 text-sm font-bold active:scale-95">{s}с</button>)}
+            {[45, 60, 90, 120, 180].map(s => <button key={s} onClick={() => start(s)} className="h-10 min-w-[58px] rounded-xl border border-line bg-white/[.04] px-3 text-sm font-bold active:scale-95">{s}с</button>)}
             {timer != null && timer > 0 && <button onClick={() => setRunning(v => !v)} className="grid h-10 min-w-10 place-items-center rounded-xl bg-cyan text-ink" aria-label={running ? 'Пауза' : 'Продолжить'}><Icon name={running ? 'pause' : 'play'} /></button>}
             {timer != null && <button onClick={() => { setTimer(null); setRunning(false); clearDone(); }} className="grid h-10 min-w-10 place-items-center rounded-xl bg-white/8 text-muted" aria-label="Сбросить таймер"><Icon name="rotate-left" /></button>}
             {done && <button onClick={clearDone} className="ml-auto whitespace-nowrap rounded-xl bg-neon px-4 py-2 text-sm font-black text-ink">ГОТОВ!</button>}
@@ -665,107 +649,94 @@
       </div>;
     }
 
+    const numericReps = (entry, exercise) => Array.from({ length: exercise.sets }, (_, i) => Number(entry?.reps?.[i] || 0));
+    const isTopSet = (exercise, entry) => numericReps(entry, exercise).every(rep => rep >= Number(exercise.max));
+    const isLoadExercise = exercise => exercise.kind !== 'bodyweight' && exercise.type !== 'band_assisted';
+
+    function getGhostPlan(exercise, previousEntry) {
+      const previousReps = numericReps(previousEntry, exercise);
+      const previousWeight = Number(previousEntry?.weight || 0) || Number(exercise.startWeight || 0);
+      const allAtTop = Boolean(previousEntry) && isTopSet(exercise, previousEntry);
+      if (exercise.type === 'metabolic_cut') return { weight: previousWeight, reps: Array(exercise.sets).fill(exercise.max), badge: '→ Держим вес', tone: 'cyan' };
+      if (exercise.type === 'band_assisted') return allAtTop
+        ? { reps: Array(exercise.sets).fill(exercise.min), badge: '↑ Пора на резинку тоньше', tone: 'neon' }
+        : { reps: previousReps.map(rep => Math.min(exercise.max, Math.max(exercise.min, rep ? rep + 1 : exercise.min))), badge: '→ Закрепляем', tone: 'cyan' };
+      if (!previousEntry) return { weight: previousWeight || '', reps: Array(exercise.sets).fill(exercise.min), badge: '→ Старт', tone: 'cyan' };
+      if (allAtTop && Number(exercise.step || 0) > 0) return { weight: previousWeight + Number(exercise.step), reps: Array(exercise.sets).fill(exercise.min), badge: '↑ Новый вес', tone: 'neon' };
+      return { weight: previousWeight || '', reps: previousReps.map(rep => Math.min(exercise.max, Math.max(exercise.min, rep ? rep + 1 : exercise.min))), badge: '→ Закрепляем', tone: 'cyan' };
+    }
+
+    function getResultStatus(exercise, entry) {
+      if (exercise.kind === 'cardio') return { tone: 'cardio', label: 'КАРДИО', text: 'Кардио учтено отдельно от силового тоннажа.' };
+      if (!entry?.completed) return null;
+      if (exercise.type === 'metabolic_cut') return { tone: 'cardio', label: 'ДЕРЖИМ ВЕС', text: 'Сушка: сохраняем вес и короткий отдых, цель — качественные повторы.' };
+      if (exercise.type === 'band_assisted') return isTopSet(exercise, entry)
+        ? { tone: 'success', label: 'РЕЗИНКА ТОНЬШЕ', text: 'Все подходы закрыты. В следующий раз выбери резинку тоньше и начни с 6 повторений.' }
+        : { tone: 'neutral', label: 'ЗАКРЕПЛЯЕМ', text: 'Оставь ту же резинку и добавляй по повторению в отстающих подходах.' };
+      if (isTopSet(exercise, entry) && Number(exercise.step || 0) > 0) return { tone: 'success', label: 'НОВЫЙ ВЕС', text: `Диапазон закрыт. Следующий ориентир: +${formatNumber(exercise.step, 1)} кг и ${exercise.min} повторений.` };
+      return { tone: 'neutral', label: 'ЗАКРЕПЛЯЕМ', text: 'Оставь вес и добавь по одному повторению в подходах, которые ещё не дошли до верхней границы.' };
+    }
+
+    function isPlateau(history, exercise) {
+      const recent = [...(history || [])].sort((a, b) => safeTime(b.completedAt || b.date) - safeTime(a.completedAt || a.date)).map(workout => workout.exercises?.find(item => item.id === exercise.id)).filter(Boolean).slice(0, 3);
+      if (recent.length < 3) return false;
+      const weights = recent.map(item => Number(item.weight || 0));
+      const repTotals = recent.map(item => (item.reps || []).reduce((sum, rep) => sum + Number(rep || 0), 0));
+      return Math.max(...weights) === Math.min(...weights) && Math.max(...repTotals) === Math.min(...repTotals);
+    }
+
     function CardioCard({ exercise, index, entry, previousEntry, onChange }) {
       const minutes = entry?.reps?.[0] ?? '';
+      const isWarmup = exercise.cardioRole === 'warmup';
       const modes = [{ id: 'walk', label: 'Дорожка', icon: 'person-walking' }, { id: 'ellipse', label: 'Эллипс', icon: 'person-running' }, { id: 'bike', label: 'Вело', icon: 'bicycle' }];
       const intensity = [{ id: 'easy', label: 'Легко' }, { id: 'optimal', label: 'Умеренно' }, { id: 'hard', label: 'Тяжело' }];
-      const good = entry?.completed && Number(minutes) >= 8 && Number(minutes) <= 15 && entry?.rpe !== 'hard';
+      const finishGood = Number(minutes) >= exercise.min && Number(minutes) <= exercise.max && entry?.rpe !== 'hard';
+      const finish = () => onChange({ completed: !entry?.completed, reps: [minutes || String(exercise.min)], mode: entry?.mode || 'walk', rpe: entry?.rpe || 'easy' });
       return <Card className={`overflow-hidden transition ${entry?.completed ? 'border-cyan/40 shadow-blueglow' : 'border-cyan/20'}`}>
         <div className="p-4 sm:p-5">
-          <div className="flex gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl font-black ${entry?.completed ? 'bg-cyan text-ink' : 'bg-cyan/10 text-cyan'}`}>{entry?.completed ? <Icon name="check"/> : index + 1}</div><div className="min-w-0 flex-1"><h3 className="font-black">Финишное кардио</h3><p className="mt-1 text-xs text-muted">8–15 минут после силовой части</p></div><span className="h-fit rounded-full bg-cyan/10 px-2.5 py-1 text-[11px] font-black text-cyan">8–15 мин</span></div>
-          <ExerciseDiagram exercise={exercise}/>
-          {previousEntry && <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-3"><div><span className="block text-[10px] font-black uppercase tracking-wider text-cyan">Прошлый раз</span><b className="mt-1 block text-sm">{previousEntry.reps?.[0] || '—'} мин · {modes.find(mode => mode.id === previousEntry.mode)?.label || 'кардио'}</b></div><button onClick={() => onChange({ reps: [...(previousEntry.reps || [''])], mode: previousEntry.mode || '', rpe: previousEntry.rpe || '' })} className="h-10 rounded-xl bg-white/8 px-3 text-xs font-black">Повторить</button></div>}
-          <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-300/[.04] px-3 py-2 text-xs text-amber-100/80"><Icon name="shield-halved" className="mr-2 text-amber-300"/>Разговорный темп, без бега, ударной нагрузки и чрезмерного наклона.</div>
-          <span className="mb-2 mt-4 block text-[11px] font-bold uppercase tracking-wider text-muted">Тренажёр</span><div className="grid grid-cols-3 gap-2">{modes.map(m => <button key={m.id} onClick={() => onChange({ mode: m.id })} className={`min-h-[58px] rounded-2xl border px-2 text-xs font-bold ${entry?.mode === m.id ? 'border-cyan bg-cyan/10 text-cyan' : 'border-line bg-white/[.025] text-muted'}`}><Icon name={m.icon} className="mb-1 block"/>{m.label}</button>)}</div>
-          <div className="mt-4 grid grid-cols-[105px_1fr] gap-3"><label><span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Минуты</span><input aria-label="Минуты кардио" type="number" inputMode="numeric" min="0" max="90" value={minutes} onChange={e => onChange({ reps: [e.target.value] })} placeholder="12" className="h-14 w-full rounded-2xl border border-line bg-black/25 px-3 text-center text-lg font-black outline-none focus:border-cyan"/></label><div><span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Интенсивность</span><div className="grid grid-cols-3 gap-2">{intensity.map(i => <button key={i.id} onClick={() => onChange({ rpe: i.id })} className={`h-14 rounded-2xl border px-1 text-[10px] font-black ${entry?.rpe === i.id ? (i.id === 'hard' ? 'border-amber-300 bg-amber-300/10 text-amber-200' : 'border-neon bg-neon/10 text-neon') : 'border-line bg-white/[.025] text-muted'}`}>{i.label}</button>)}</div></div></div>
-          <button onClick={() => onChange({ completed: !entry?.completed })} className={`mt-4 min-h-[54px] w-full rounded-2xl px-4 font-black transition active:scale-[.98] ${entry?.completed ? 'bg-cyan text-ink' : 'bg-white/8 text-white'}`}><Icon name={entry?.completed ? 'circle-check' : 'circle'} className="mr-2"/>{entry?.completed ? 'Кардио выполнено' : 'Завершить кардио'}</button>
+          <div className="flex gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl font-black ${entry?.completed ? 'bg-cyan text-ink' : 'bg-cyan/10 text-cyan'}`}>{entry?.completed ? <Icon name="check"/> : index + 1}</div><div className="min-w-0 flex-1"><h3 className="font-black">{exercise.name}</h3><p className="mt-1 text-xs text-muted">{isWarmup ? '5 минут лёгкой дорожки перед силовой частью' : `${exercise.min}${exercise.min === exercise.max ? '' : `–${exercise.max}`} минут после силовой части`}</p></div><span className="h-fit rounded-full bg-cyan/10 px-2.5 py-1 text-[11px] font-black text-cyan">{exercise.load}</span></div>
+          {!isWarmup && <ExerciseDiagram exercise={exercise}/>} 
+          {previousEntry && <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-3"><div><span className="block text-[10px] font-black uppercase tracking-wider text-cyan">Прошлый раз</span><b className="mt-1 block text-sm">{previousEntry.reps?.[0] || '—'} мин · {modes.find(mode => mode.id === previousEntry.mode)?.label || 'кардио'}</b></div><button onClick={() => onChange({ reps: [...(previousEntry.reps || [''])], mode: previousEntry.mode || '', rpe: previousEntry.rpe || '', incline: previousEntry.incline || '', speed: previousEntry.speed || '' })} className="h-10 rounded-xl bg-white/8 px-3 text-xs font-black">Повторить</button></div>}
+          <div className="mt-4 grid grid-cols-3 gap-2"><label><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-muted">Минуты</span><input type="number" inputMode="numeric" min="0" max="90" value={minutes} onChange={e => onChange({ reps: [e.target.value] })} placeholder={String(exercise.min)} className="h-12 w-full rounded-xl border border-line bg-black/25 px-2 text-center font-black outline-none focus:border-cyan"/></label>{!isWarmup && <><label><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-muted">Уклон, %</span><input type="number" inputMode="decimal" min="0" max="25" value={entry?.incline ?? ''} onChange={e => onChange({ incline: e.target.value })} placeholder="8" className="h-12 w-full rounded-xl border border-line bg-black/25 px-2 text-center font-black outline-none focus:border-cyan"/></label><label><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-muted">Скорость</span><input type="number" inputMode="decimal" min="0" max="20" step="0.1" value={entry?.speed ?? ''} onChange={e => onChange({ speed: e.target.value })} placeholder="5.5" className="h-12 w-full rounded-xl border border-line bg-black/25 px-2 text-center font-black outline-none focus:border-cyan"/></label></>}</div>
+          {!isWarmup && <><span className="mb-2 mt-4 block text-[11px] font-bold uppercase tracking-wider text-muted">Тренажёр и интенсивность</span><div className="grid grid-cols-3 gap-2">{modes.map(m => <button key={m.id} onClick={() => onChange({ mode: m.id })} className={`min-h-[48px] rounded-xl border px-1 text-[10px] font-bold ${entry?.mode === m.id ? 'border-cyan bg-cyan/10 text-cyan' : 'border-line bg-white/[.025] text-muted'}`}><Icon name={m.icon} className="mb-1 block"/>{m.label}</button>)}</div><div className="mt-2 grid grid-cols-3 gap-2">{intensity.map(i => <button key={i.id} onClick={() => onChange({ rpe: i.id })} className={`h-11 rounded-xl border px-1 text-[10px] font-black ${entry?.rpe === i.id ? 'border-neon bg-neon/10 text-neon' : 'border-line bg-white/[.025] text-muted'}`}>{i.label}</button>)}</div></>}
+          <button onClick={finish} className={`mt-4 min-h-[54px] w-full rounded-2xl px-4 font-black transition active:scale-[.98] ${entry?.completed ? 'bg-cyan text-ink' : 'bg-white/8 text-white'}`}><Icon name={entry?.completed ? 'circle-check' : 'circle'} className="mr-2"/>{entry?.completed ? 'Выполнено' : isWarmup ? 'Разминка выполнена' : 'Завершить кардио'}</button>
         </div>
-        {entry?.completed && <div className={`border-t px-4 py-4 ${good ? 'border-neon/20 bg-neon/[.08]' : 'border-amber-300/20 bg-amber-300/[.08]'}`}><div className="flex gap-3"><Icon name={good ? 'heart-circle-check' : 'heart-pulse'} className={good ? 'mt-1 text-neon' : 'mt-1 text-amber-300'}/><div><p className="text-sm font-black">{good ? 'Финиш закрыт!' : 'Слушай пульс и дыхание'}</p><p className="mt-1 text-xs leading-relaxed text-white/70">{good ? `${minutes} минут умеренного кардио — отличный объём для восстановления и выносливости.` : 'Ориентир — 8–15 минут в разговорном темпе. Если устал после силовой, не форсируй нагрузку.'}</p></div></div></div>}
+        {entry?.completed && !isWarmup && <div className={`border-t px-4 py-4 ${finishGood ? 'border-neon/20 bg-neon/[.08]' : 'border-amber-300/20 bg-amber-300/[.08]'}`}><p className="text-sm font-black">{finishGood ? 'Кардио закрыто!' : 'Слушай пульс и дыхание'}</p><p className="mt-1 text-xs text-white/70">{finishGood ? `${minutes} минут учтены в недельном отчёте.` : `Ориентир — ${exercise.min}${exercise.min === exercise.max ? '' : `–${exercise.max}`} минут в разговорном темпе.`}</p></div>}
       </Card>;
     }
 
-    function getRecommendation(exercise, entry) {
-      if (exercise.kind === 'cardio') return entry?.completed ? { tone: 'cardio', title: 'Кардио выполнено', text: 'Финишная аэробная работа учтена отдельно от силового тоннажа.' } : null;
-      if (!entry?.completed) return null;
-      if (!entry.rpe) return { tone: 'neutral', title: 'Оцени сложность', text: 'Выбери RPE — так рекомендация на следующую тренировку будет точнее.' };
-      const reps = Array.from({ length: exercise.sets }, (_, i) => Number(entry.reps?.[i] || 0));
-      const allAtTop = reps.every(r => r >= exercise.max);
-      const loadReady = exercise.kind === 'bodyweight' || Number(entry.weight) > 0;
-      if (allAtTop && loadReady && (entry.rpe === 'easy' || entry.rpe === 'optimal')) {
-        if (exercise.kind === 'bodyweight') return { tone: 'success', title: 'Отличная работа!', text: `На следующей неделе добавь 5–10 секунд к подходу или усложни вариант, сохраняя идеальную технику.` };
-        const delta = exercise.kind === 'dumbbell' ? '1–2 кг' : '2.5–5 кг';
-        const w = Number(entry.weight || 0);
-        const exact = exercise.kind === 'dumbbell' ? `${formatNumber(w + 1, 1)}–${formatNumber(w + 2, 1)} кг` : `${formatNumber(w + 2.5, 1)}–${formatNumber(w + 5, 1)} кг`;
-        return { tone: 'success', title: 'Отличная работа!', text: `На следующей неделе увеличь вес на +${delta} (${exercise.kind === 'dumbbell' ? 'для гантелей' : 'для блочного тренажёра'}). Ориентир: ${exact}.` };
-      }
-      const w = Number(entry.weight || 0);
-      const reduced = w ? ` Если техника распадается — попробуй ${formatNumber(w * .9, 1)} кг.` : '';
-      return { tone: 'care', title: 'Ты выложился на максимум!', text: `Так как важно беречь спину при сколиозе и не перегружать ЦНС, на следующей тренировке оставь этот же вес или снизь на 10% для идеальной техники.${reduced}` };
-    }
-
-    function ExerciseCard({ exercise, index, entry, previousEntry, onChange, onStartTimer }) {
+    function ExerciseCard({ exercise, index, entry, previousEntry, history, onChange, onStartTimer }) {
       const reps = entry?.reps || Array(exercise.sets).fill('');
-      const recommendation = getRecommendation(exercise, entry);
-      const tone = recommendation?.tone;
-      return (
-        <Card className={`overflow-hidden transition ${entry?.completed ? 'border-neon/35' : ''}`}>
-          <div className="p-4 sm:p-5">
-            <div className="flex gap-3">
-              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl font-black ${entry?.completed ? 'bg-neon text-ink' : 'bg-white/7 text-muted'}`}>{entry?.completed ? <Icon name="check" /> : index + 1}</div>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-black leading-tight text-white">{exercise.name}</h3>
-                <p className="mt-1 text-xs text-muted">{exercise.detail} · {exercise.sets} × {exercise.min === exercise.max ? exercise.max : `${exercise.min}–${exercise.max}`} {exercise.unit || 'повт.'}</p>
-              </div>
-              <span className="h-fit whitespace-nowrap rounded-full bg-cyan/10 px-2.5 py-1 text-[11px] font-black text-cyan">{exercise.load}</span>
-            </div>
-
-            {previousEntry && <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-3"><div className="min-w-0"><span className="block text-[10px] font-black uppercase tracking-wider text-cyan">Прошлый результат</span><b className="mt-1 block truncate text-sm">{exercise.kind !== 'bodyweight' && Number(previousEntry.weight) > 0 ? `${formatNumber(previousEntry.weight, 1)} кг · ` : ''}{(previousEntry.reps || []).filter(value => value !== '').join(' / ') || '—'} {exercise.unit || 'повт.'}</b></div><button onClick={() => onChange({ weight: previousEntry.weight == null ? '' : String(previousEntry.weight), reps: [...(previousEntry.reps || [])], rpe: previousEntry.rpe || '' })} className="h-10 shrink-0 rounded-xl bg-white/8 px-3 text-xs font-black">Повторить</button></div>}
-
-            <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-300/[.04] px-3 py-2 text-xs text-amber-100/80"><Icon name="shield-halved" className="mr-2 text-amber-300" />{exercise.cue}</div>
-
-            <ExerciseDiagram exercise={exercise} />
-
-            <div className={`mt-4 grid gap-3 ${exercise.kind === 'bodyweight' ? '' : 'grid-cols-[112px_1fr]'}`}>
-              {exercise.kind !== 'bodyweight' && <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Вес, кг</span>
-                <input type="number" inputMode="decimal" min="0" step="0.5" value={entry?.weight ?? ''} onChange={e => onChange({ weight: e.target.value })} placeholder={exercise.load.replace(/[^0-9.,–-]/g, '')} className="h-14 w-full rounded-2xl border border-line bg-black/25 px-4 text-center text-lg font-black outline-none focus:border-cyan" />
-              </label>}
-              <div>
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Повторения по подходам</span>
-                <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: exercise.sets }, (_, i) => <label key={i} className="relative">
-                    <input aria-label={`Подход ${i + 1}`} type="number" inputMode="numeric" min="0" max="999" value={reps[i] ?? ''} onChange={e => { const next = [...reps]; next[i] = e.target.value; onChange({ reps: next }); }} placeholder={String(exercise.max)} className="h-14 w-full rounded-2xl border border-line bg-black/25 px-2 pt-3 text-center text-lg font-black outline-none focus:border-neon" />
-                    <span className="pointer-events-none absolute left-0 right-0 top-1 text-center text-[9px] font-bold uppercase text-muted">{i + 1} сет</span>
-                  </label>)}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-muted">Субъективная сложность (RPE)</span>
-              <div className="grid grid-cols-3 gap-2">
-                {RPE_OPTIONS.map(r => <button key={r.id} onClick={() => onChange({ rpe: r.id })} className={`min-h-[62px] rounded-2xl border px-2 py-2 text-center transition active:scale-95 ${entry?.rpe === r.id ? (r.id === 'hard' ? 'border-amber-300 bg-amber-300/12 text-amber-200' : 'border-cyan bg-cyan/12 text-cyan') : 'border-line bg-white/[.025] text-muted'}`}>
-                  <Icon name={r.icon} className="mb-1 block" /><span className="block text-[11px] font-black leading-tight">{r.label}</span>{r.sub && <span className="block text-[9px]">{r.sub}</span>}
-                </button>)}
-              </div>
-            </div>
-
-            <div className="mt-4 flex gap-2">
-              <button onClick={() => onChange({ completed: !entry?.completed })} className={`min-h-[54px] flex-1 rounded-2xl px-4 font-black transition active:scale-[.98] ${entry?.completed ? 'bg-neon text-ink shadow-glow' : 'bg-white/8 text-white'}`}>
-                <Icon name={entry?.completed ? 'circle-check' : 'circle'} className="mr-2" />{entry?.completed ? 'Выполнено' : 'Отметить выполненным'}
-              </button>
-              <button onClick={() => onStartTimer(90)} className="grid min-h-[54px] w-14 place-items-center rounded-2xl border border-line bg-white/[.04] text-cyan" aria-label="Запустить отдых 90 секунд"><Icon name="stopwatch" /></button>
-            </div>
-          </div>
-
-          {recommendation && <div className={`border-t px-4 py-4 ${tone === 'success' ? 'border-neon/20 bg-neon/[.08]' : tone === 'care' ? 'border-amber-300/20 bg-amber-300/[.08]' : 'border-line bg-white/[.025]'}`}>
-            <div className="flex gap-3">
-              <Icon name={tone === 'success' ? 'arrow-trend-up' : tone === 'care' ? 'heart-pulse' : 'sliders'} className={`mt-1 ${tone === 'success' ? 'text-neon' : tone === 'care' ? 'text-amber-300' : 'text-cyan'}`} />
-              <div><p className="text-sm font-black">{recommendation.title}</p><p className="mt-1 text-xs leading-relaxed text-white/70">{recommendation.text}</p></div>
-            </div>
-          </div>}
-        </Card>
-      );
+      const ghost = getGhostPlan(exercise, previousEntry);
+      const recommendation = getResultStatus(exercise, entry);
+      const plateau = isPlateau(history, exercise);
+      const setDone = entry?.setDone || Array(exercise.sets).fill(false);
+      const markSet = index => {
+        const nextReps = [...reps];
+        if (nextReps[index] === '' || nextReps[index] == null) nextReps[index] = String(ghost.reps[index]);
+        const nextDone = Array.from({ length: exercise.sets }, (_, i) => i === index ? !setDone[i] : Boolean(setDone[i]));
+        const patch = { reps: nextReps, setDone: nextDone, completed: nextDone.every(Boolean), rpe: entry?.rpe || 'optimal' };
+        if (isLoadExercise(exercise) && (entry?.weight === '' || entry?.weight == null)) patch.weight = String(ghost.weight || '');
+        onChange(patch);
+        if (!setDone[index] && exercise.rest) onStartTimer(exercise.rest);
+      };
+      const completeAll = () => {
+        if (entry?.completed) return onChange({ completed: false });
+        const nextReps = Array.from({ length: exercise.sets }, (_, i) => reps[i] === '' || reps[i] == null ? String(ghost.reps[i]) : reps[i]);
+        const patch = { reps: nextReps, setDone: Array(exercise.sets).fill(true), completed: true, rpe: entry?.rpe || 'optimal' };
+        if (isLoadExercise(exercise) && (entry?.weight === '' || entry?.weight == null)) patch.weight = String(ghost.weight || '');
+        onChange(patch); if (exercise.rest) onStartTimer(exercise.rest);
+      };
+      return <Card className={`overflow-hidden transition ${entry?.completed ? 'border-neon/35' : plateau ? 'border-amber-300/55' : ''}`}>
+        <div className="p-4 sm:p-5"><div className="flex gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl font-black ${entry?.completed ? 'bg-neon text-ink' : 'bg-white/7 text-muted'}`}>{entry?.completed ? <Icon name="check" /> : index + 1}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black leading-tight text-white">{exercise.name}</h3><span className={`rounded-full px-2 py-1 text-[9px] font-black ${ghost.tone === 'neon' ? 'bg-neon/15 text-neon' : 'bg-cyan/12 text-cyan'}`}>{ghost.badge}</span>{plateau && <span className="rounded-full bg-amber-300/15 px-2 py-1 text-[9px] font-black text-amber-200">Плато (3 нед.)</span>}</div><p className="mt-1 text-xs text-muted">{exercise.detail} · {exercise.sets} × {exercise.min === exercise.max ? exercise.max : `${exercise.min}–${exercise.max}`} {exercise.unit || 'повт.'} · отдых {exercise.rest}с</p></div><span className="h-fit whitespace-nowrap rounded-full bg-cyan/10 px-2.5 py-1 text-[11px] font-black text-cyan">{exercise.load}</span></div>
+          {previousEntry && <div className="mt-4 rounded-2xl border border-cyan/15 bg-cyan/[.05] p-3 text-sm"><span className="block text-[10px] font-black uppercase tracking-wider text-cyan">Прошлый результат</span><b className="mt-1 block">{isLoadExercise(exercise) && Number(previousEntry.weight) > 0 ? `${formatNumber(previousEntry.weight, 1)} кг · ` : ''}{(previousEntry.reps || []).filter(value => value !== '').join(' / ') || '—'} {exercise.unit || 'повт.'}</b></div>}
+          <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-300/[.04] px-3 py-2 text-xs text-amber-100/80"><Icon name="shield-halved" className="mr-2 text-amber-300" />{exercise.cue}</div><ExerciseDiagram exercise={exercise}/>
+          {exercise.type === 'band_assisted' && <label className="mt-4 block"><span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Резинка</span><select value={entry?.band || ''} onChange={e => onChange({ band: e.target.value })} className="h-12 w-full rounded-2xl border border-line bg-black/25 px-3 text-sm font-bold outline-none focus:border-neon"><option value="">Выбери резинку</option>{['Чёрная', 'Фиолетовая', 'Зелёная', 'Красная', 'Без резинки'].map(band => <option key={band} value={band}>{band}</option>)}</select></label>}
+          <div className={`mt-4 grid gap-3 ${isLoadExercise(exercise) ? 'grid-cols-[112px_1fr]' : ''}`}>{isLoadExercise(exercise) && <label><span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Вес, кг</span><input type="number" inputMode="decimal" min="0" step="0.5" value={entry?.weight ?? ''} onChange={e => onChange({ weight: e.target.value })} placeholder={ghost.weight === '' ? '' : String(ghost.weight)} className="h-14 w-full rounded-2xl border border-line bg-black/25 px-3 text-center text-lg font-black outline-none focus:border-cyan" /></label>}<div><span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Повторения по подходам</span><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{Array.from({ length: exercise.sets }, (_, i) => <div key={i} className="flex gap-1"><label className="relative min-w-0 flex-1"><input aria-label={`Подход ${i + 1}`} type="number" inputMode="numeric" min="0" max="999" value={reps[i] ?? ''} onChange={e => { const next = [...reps]; next[i] = e.target.value; onChange({ reps: next }); }} placeholder={String(ghost.reps[i])} className="h-14 w-full rounded-2xl border border-line bg-black/25 px-1 pt-3 text-center text-lg font-black outline-none focus:border-neon"/><span className="pointer-events-none absolute left-0 right-0 top-1 text-center text-[9px] font-bold uppercase text-muted">{i + 1} сет</span></label><button onClick={() => markSet(i)} className={`grid h-14 w-11 place-items-center rounded-2xl border ${setDone[i] ? 'border-neon bg-neon text-ink' : 'border-line bg-white/[.04] text-neon'}`} aria-label={`Отметить ${i + 1} подход`}><Icon name="check"/></button></div>)}</div></div></div>
+          <div className="mt-4"><span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-muted">Субъективная сложность (RPE)</span><div className="grid grid-cols-3 gap-2">{RPE_OPTIONS.map(r => <button key={r.id} onClick={() => onChange({ rpe: r.id })} className={`min-h-[55px] rounded-2xl border px-2 py-2 text-center transition ${entry?.rpe === r.id ? (r.id === 'hard' ? 'border-amber-300 bg-amber-300/12 text-amber-200' : 'border-cyan bg-cyan/12 text-cyan') : 'border-line bg-white/[.025] text-muted'}`}><Icon name={r.icon} className="mb-1 block"/><span className="block text-[10px] font-black leading-tight">{r.label}</span></button>)}</div></div>
+          <div className="mt-4 flex gap-2"><button onClick={completeAll} className={`min-h-[54px] flex-1 rounded-2xl px-4 font-black transition ${entry?.completed ? 'bg-neon text-ink shadow-glow' : 'bg-white/8 text-white'}`}><Icon name={entry?.completed ? 'circle-check' : 'circle'} className="mr-2"/>{entry?.completed ? 'Выполнено' : 'Отметить всё выполненным'}</button><button onClick={() => onStartTimer(exercise.rest)} className="grid min-h-[54px] w-14 place-items-center rounded-2xl border border-line bg-white/[.04] text-cyan" aria-label={`Запустить отдых ${exercise.rest} секунд`}><Icon name="stopwatch"/></button></div>
+        </div>{recommendation && <div className={`border-t px-4 py-4 ${recommendation.tone === 'success' ? 'border-neon/20 bg-neon/[.08]' : 'border-line bg-white/[.025]'}`}><div className="flex gap-3"><Icon name={recommendation.tone === 'success' ? 'arrow-trend-up' : 'sliders'} className={`mt-1 ${recommendation.tone === 'success' ? 'text-neon' : 'text-cyan'}`}/><div><p className="text-sm font-black">{recommendation.label}</p><p className="mt-1 text-xs leading-relaxed text-white/70">{recommendation.text}</p></div></div></div>}
+      </Card>;
     }
 
     function WorkoutView({ data, selectedDay, setSelectedDay, weekKey, updateExercise, updateWorkoutNote, addProtein, resetProtein, startTimer, analysisOpen, setAnalysisOpen }) {
@@ -776,7 +747,7 @@
       const previousEntries = Object.fromEntries((previousWorkout?.exercises || []).map(exercise => [exercise.id, exercise]));
       const workoutDuration = dayData.startedAt && dayData.completedAt ? Math.max(1, Math.round((safeTime(dayData.completedAt) - safeTime(dayData.startedAt)) / 60000)) : null;
       const completeCount = workout.exercises.filter(ex => entries[ex.id]?.completed).length;
-      const successCount = workout.exercises.filter(ex => getRecommendation(ex, entries[ex.id])?.tone === 'success').length;
+      const successCount = workout.exercises.filter(ex => getResultStatus(ex, entries[ex.id])?.tone === 'success').length;
       const tonnage = workout.exercises.reduce((sum, ex) => {
         const e = entries[ex.id];
         if (!e?.completed || !ex.multiplier) return sum;
@@ -816,14 +787,13 @@
               </div>
               <div className="mt-4"><ProgressBar value={completeCount} max={workout.exercises.length} /></div>
               {dayData.startedAt && <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-muted"><span className="rounded-full bg-white/5 px-3 py-1.5"><Icon name="clock" className="mr-1 text-cyan"/>Начало {new Date(dayData.startedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>{workoutDuration && <span className="rounded-full bg-white/5 px-3 py-1.5"><Icon name="stopwatch" className="mr-1 text-neon"/>{workoutDuration} мин</span>}</div>}
-              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/15 bg-amber-300/[.05] p-3 text-xs leading-relaxed text-amber-100/80"><Icon name="triangle-exclamation" className="mt-0.5 text-amber-300" /><span><b className="text-amber-200">Контроль при сколиозе:</b> техника важнее цифры. Избегай чрезмерной осевой нагрузки, боли и рывков.</span></div>
             </div>
           </Card>
 
           <div className="space-y-4">
             {workout.exercises.map((exercise, index) => exercise.kind === 'cardio'
               ? <CardioCard key={exercise.id} exercise={exercise} index={index} entry={entries[exercise.id] || { reps: [''], rpe: '', mode: '', completed: false }} previousEntry={previousEntries[exercise.id]} onChange={patch => updateExercise(workout.id, exercise.id, patch)} />
-              : <ExerciseCard key={exercise.id} exercise={exercise} index={index} entry={entries[exercise.id] || { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false }} previousEntry={previousEntries[exercise.id]} onChange={patch => updateExercise(workout.id, exercise.id, patch)} onStartTimer={startTimer} />)}
+              : <ExerciseCard key={exercise.id} exercise={exercise} index={index} entry={entries[exercise.id] || { reps: Array(exercise.sets).fill(''), weight: '', rpe: '', completed: false }} previousEntry={previousEntries[exercise.id]} history={data.history} onChange={patch => updateExercise(workout.id, exercise.id, patch)} onStartTimer={startTimer} />)}
           </div>
 
           <Card className="p-5">
@@ -840,8 +810,8 @@
             <p className="text-xs font-black uppercase tracking-[.18em] text-cyan">Умный разбор</p><h2 className="mt-2 pr-12 text-2xl font-black">{workout.title}</h2>
             <div className="mt-5 space-y-3">
               {workout.exercises.map(ex => {
-                const rec = getRecommendation(ex, entries[ex.id]);
-                return <div key={ex.id} className="rounded-2xl border border-line bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><p className="font-bold">{ex.name}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${rec?.tone === 'success' ? 'bg-neon/12 text-neon' : rec?.tone === 'care' ? 'bg-amber-300/12 text-amber-200' : rec?.tone === 'cardio' ? 'bg-cyan/12 text-cyan' : 'bg-white/7 text-muted'}`}>{rec?.tone === 'success' ? 'ПРОГРЕССИЯ' : rec?.tone === 'care' ? 'БЕРЕЖНО' : rec?.tone === 'cardio' ? 'КАРДИО' : 'НЕТ ДАННЫХ'}</span></div><p className="mt-2 text-sm leading-relaxed text-muted">{rec?.text || (ex.kind === 'cardio' ? 'Укажи минуты, интенсивность и заверши кардио.' : 'Внеси вес, повторения, RPE и отметь упражнение выполненным.')}</p></div>;
+                const rec = getResultStatus(ex, entries[ex.id]);
+                return <div key={ex.id} className="rounded-2xl border border-line bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><p className="font-bold">{ex.name}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${rec?.tone === 'success' ? 'bg-neon/12 text-neon' : rec?.tone === 'cardio' ? 'bg-cyan/12 text-cyan' : 'bg-white/7 text-muted'}`}>{rec?.label || 'НЕТ ДАННЫХ'}</span></div><p className="mt-2 text-sm leading-relaxed text-muted">{rec?.text || (ex.kind === 'cardio' ? 'Укажи минуты и заверши кардио.' : 'Внеси вес, повторения и отметь упражнение выполненным.')}</p></div>;
               })}
             </div>
           </Modal>
@@ -861,7 +831,7 @@
                 <div className="flex items-center justify-between"><div className={`grid h-12 w-12 place-items-center rounded-2xl font-black ${di % 2 ? 'bg-cyan/12 text-cyan' : 'bg-neon/12 text-neon'}`}>{day.short}</div><span className="text-xs font-bold text-muted">{done}/{day.exercises.length}</span></div>
                 <h2 className="mt-4 text-lg font-black">{day.title}</h2>
                 <ol className="mt-4 space-y-3">
-                  {day.exercises.map((ex, i) => <li key={ex.id} className="flex gap-3 text-sm"><span className="font-black text-white/25">0{i + 1}</span><span className="flex-1 text-white/75">{ex.name}<small className="mt-0.5 block text-muted">{ex.kind === 'cardio' ? '8–15 минут · разговорный темп' : `${ex.sets} × ${ex.min === ex.max ? ex.max : `${ex.min}–${ex.max}`} · ${ex.load}`}</small></span>{entries[ex.id]?.completed && <Icon name="circle-check" className="text-neon" />}</li>)}
+                  {day.exercises.map((ex, i) => <li key={ex.id} className="flex gap-3 text-sm"><span className="font-black text-white/25">{String(i + 1).padStart(2, '0')}</span><span className="flex-1 text-white/75">{ex.name}<small className="mt-0.5 block text-muted">{ex.kind === 'cardio' ? `${ex.min}${ex.min === ex.max ? '' : `–${ex.max}`} мин · ${ex.cardioRole === 'warmup' ? 'до силовой части' : 'ходьба в горку'}` : `${ex.sets} × ${ex.min === ex.max ? ex.max : `${ex.min}–${ex.max}`} · ${ex.load} · отдых ${ex.rest}с`}</small></span>{entries[ex.id]?.completed && <Icon name="circle-check" className="text-neon" />}</li>)}
                 </ol>
                 <button onClick={() => onOpenDay(day.id)} className="mt-4 h-12 w-full rounded-2xl bg-white/8 font-black active:scale-[.98]">Открыть тренировку <Icon name="arrow-right" className="ml-2" /></button>
               </div>
@@ -890,9 +860,12 @@
 
     function ProgressView({ data, deleteMeasurementMetric }) {
       const allExercises = DAYS.flatMap(d => d.exercises);
-      const [selected, setSelected] = useState(allExercises[0].id);
+      const [selected, setSelected] = useState(allExercises.find(exercise => isLoadExercise(exercise))?.id || allExercises[0].id);
       const [bodyMetric, setBodyMetric] = useState('weight');
       const [pendingDelete, setPendingDelete] = useState(null);
+      const [reportOpen, setReportOpen] = useState(false);
+      const [reportCopied, setReportCopied] = useState(false);
+      const [reportDraft, setReportDraft] = useState({ weight: '', energy: '', nutrition: 'Примерно', comment: '' });
       const history = [...data.history].sort((a,b) => new Date(a.date) - new Date(b.date));
       const exercisePoints = history.filter(h => h.exercises?.some(e => e.id === selected && Number(e.weight) > 0)).map(h => {
         const e = h.exercises.find(x => x.id === selected); return { value: Number(e.weight), label: new Date(h.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) };
@@ -908,6 +881,32 @@
       const averageProtein = proteinDays.length ? proteinDays.reduce((sum, item) => sum + Number(item.grams || 0), 0) / proteinDays.length : 0;
       const totalTonnage = history.reduce((a,h) => a + Number(h.tonnage || 0), 0);
       const bestSession = Math.max(0, ...history.map(h => Number(h.tonnage || 0)));
+      const reportWeekKey = getWeekKey();
+      const reportWorkouts = history.filter(workout => workout.weekKey === reportWeekKey);
+      const previousWeekDate = new Date(); previousWeekDate.setDate(previousWeekDate.getDate() - 7);
+      const previousWeekTonnage = history.filter(workout => workout.weekKey === getWeekKey(previousWeekDate)).reduce((sum, workout) => sum + Number(workout.tonnage || 0), 0);
+      const reportTonnage = reportWorkouts.reduce((sum, workout) => sum + Number(workout.tonnage || 0), 0);
+      const reportCardio = reportWorkouts.reduce((sum, workout) => sum + (workout.exercises || []).filter(exercise => exercise.kind === 'cardio').reduce((subtotal, exercise) => subtotal + Number(exercise.reps?.[0] || 0), 0), 0);
+      const makeReport = () => {
+        const monday = new Date(`${reportWeekKey}T12:00:00`); const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
+        const dateText = [monday, sunday].map(date => date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })).join(' – ');
+        const change = previousWeekTonnage ? `${reportTonnage >= previousWeekTonnage ? '+' : ''}${formatNumber((reportTonnage - previousWeekTonnage) / previousWeekTonnage * 100, 1)}%` : '—';
+        const bodyWeight = reportDraft.weight || data.health?.latest?.weight || data.profile.weight || '—';
+        const lines = [`=== ОТЧЁТ E-GYM (${dateText}) ===`, `Тренировок: ${reportWorkouts.length}/4 | Тоннаж: ${formatNumber(reportTonnage)} кг (изменение к прошлой неделе: ${change})`, `Кардио всего: ${formatNumber(reportCardio)} мин | Вес тела: ${bodyWeight === '—' ? '—' : `${formatNumber(bodyWeight, 1)} кг`} | Энергия: ${reportDraft.energy || '—'}/10 | Питание: ${reportDraft.nutrition}`, `Комментарий: ${reportDraft.comment.trim() || '—'}`];
+        reportWorkouts.sort((a, b) => safeTime(a.completedAt || a.date) - safeTime(b.completedAt || b.date)).forEach(workout => {
+          const day = DAYS.find(item => item.id === workout.workoutId); lines.push('', `[${day?.short || '—'} — ${workout.title}]`);
+          (workout.exercises || []).forEach(recorded => {
+            const planned = allExercises.find(exercise => exercise.id === recorded.id);
+            if (recorded.kind === 'cardio') { lines.push(`${recorded.name}: ${recorded.reps?.[0] || '—'} мин${recorded.incline ? ` · уклон ${recorded.incline}%` : ''}${recorded.speed ? ` · ${recorded.speed} км/ч` : ''}`); return; }
+            const reps = (recorded.reps || []).filter(rep => rep !== '').join(', ') || '—';
+            const status = planned && isTopSet(planned, recorded) ? (planned.type === 'band_assisted' ? '↑ Резинка тоньше' : planned.type === 'metabolic_cut' ? '→ Держим вес' : planned.step ? `↑ Готов к +${formatNumber(planned.step, 1)} кг` : '→ Закрепляем') : '→ Закрепляем';
+            const load = recorded.type === 'band_assisted' || planned?.type === 'band_assisted' ? (recorded.band || 'резинка не указана') : Number(recorded.weight) > 0 ? `${formatNumber(recorded.weight, 1)} кг` : '';
+            lines.push(`${recorded.name}: ${load ? `${load} × ` : ''}${reps} [${status}]`);
+          });
+        });
+        return lines.join('\n');
+      };
+      const copyReport = async () => { const text = makeReport(); try { await navigator.clipboard.writeText(text); setReportCopied(true); setTimeout(() => setReportCopied(false), 1800); } catch { prompt('Скопируй отчёт:', text); } };
       return <div className="space-y-5">
         <div><p className="text-xs font-black uppercase tracking-[.2em] text-cyan">История и аналитика</p><h1 className="mt-2 text-3xl font-black">Прогресс,<br/><span className="text-white/40">который видно.</span></h1></div>
         <div className="grid grid-cols-3 gap-2">
@@ -915,6 +914,7 @@
           <Card className="p-3"><Icon name="weight-hanging" className="text-cyan"/><b className="mt-2 block text-xl">{formatNumber(totalTonnage / 1000, 1)}</b><span className="text-[10px] text-muted">тонн всего</span></Card>
           <Card className="p-3"><Icon name="trophy" className="text-amber-300"/><b className="mt-2 block text-xl">{formatNumber(bestSession)}</b><span className="text-[10px] text-muted">кг рекорд</span></Card>
         </div>
+        <Card className="overflow-hidden p-5 shadow-blueglow"><div className="flex items-center gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan/12 text-xl text-cyan"><Icon name="file-lines"/></div><div className="min-w-0 flex-1"><p className="text-xs font-black uppercase tracking-wider text-cyan">Итоги недели</p><h2 className="mt-1 font-black">Отчёт для тренера или ИИ</h2><p className="mt-1 text-xs text-muted">Соберёт тренировки, тоннаж, кардио и твои короткие заметки.</p></div></div><button onClick={() => { setReportCopied(false); setReportOpen(true); }} className="mt-4 h-13 min-h-[52px] w-full rounded-2xl bg-cyan font-black text-ink active:scale-[.98]"><Icon name="clipboard-list" className="mr-2"/>Сделать отчёт за неделю</button></Card>
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wider text-cyan">Показатели тела</p><h2 className="mt-1 font-black">Динамика замеров</h2></div><Icon name="person" className="text-cyan" /></div>
           <select value={bodyMetric} onChange={event => { setBodyMetric(event.target.value); setPendingDelete(null); }} className="mt-4 h-12 w-full rounded-2xl border border-line bg-[#0b0f11] px-4 text-sm font-bold outline-none focus:border-cyan">{Object.entries(bodyMetrics).map(([key, metric]) => <option key={key} value={key}>{metric.label}</option>)}</select>
@@ -950,6 +950,11 @@
           <div className="text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-red-400/10 text-2xl text-red-300"><Icon name="trash-can" /></div><p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-red-300">Удаление замера</p><h2 className="mt-2 text-2xl font-black">Удалить эту точку?</h2>{pendingDelete && <><p className="mt-3 text-3xl font-black text-cyan">{formatNumber(pendingDelete.value, 2)}{bodyMetrics[bodyMetric].unit}</p><p className="mt-1 text-sm text-muted">{formatDateTime(pendingDelete.timestamp)} · {pendingDelete.source === 'health' ? 'Apple Health' : 'вручную'}</p></>}</div>
           <p className="mt-5 rounded-2xl border border-line bg-black/20 p-4 text-sm leading-relaxed text-muted">Удалится только выбранный показатель. Тренировки, вес, мышцы и остальные данные останутся.</p>
           <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setPendingDelete(null)} className="h-14 rounded-2xl bg-white/8 font-black">Отмена</button><button type="button" onClick={() => { if (!pendingDelete) return; deleteMeasurementMetric(pendingDelete.id, bodyMetric); setPendingDelete(null); }} className="h-14 rounded-2xl bg-red-400 font-black text-[#170707]">Удалить точку</button></div>
+        </Modal>
+        <Modal open={reportOpen} onClose={() => setReportOpen(false)} wide>
+          <p className="text-xs font-black uppercase tracking-[.18em] text-cyan">Еженедельный отчёт</p><h2 className="mt-2 pr-12 text-2xl font-black">Готово для ИИ</h2><p className="mt-2 text-sm text-muted">Поля необязательные: заполни за несколько секунд, затем скопируй готовый текст.</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2"><label><span className="mb-1.5 block text-xs font-bold text-muted">Вес тела утром, кг</span><input type="number" inputMode="decimal" value={reportDraft.weight} onChange={event => setReportDraft({ ...reportDraft, weight: event.target.value })} placeholder={data.profile.weight ? String(data.profile.weight) : '80.0'} className="h-12 w-full rounded-2xl border border-line bg-black/25 px-4 font-bold outline-none focus:border-cyan"/></label><label><span className="mb-1.5 block text-xs font-bold text-muted">Сон / энергия, 1–10</span><input type="number" inputMode="numeric" min="1" max="10" value={reportDraft.energy} onChange={event => setReportDraft({ ...reportDraft, energy: event.target.value })} placeholder="8" className="h-12 w-full rounded-2xl border border-line bg-black/25 px-4 font-bold outline-none focus:border-cyan"/></label><label><span className="mb-1.5 block text-xs font-bold text-muted">Питание</span><select value={reportDraft.nutrition} onChange={event => setReportDraft({ ...reportDraft, nutrition: event.target.value })} className="h-12 w-full rounded-2xl border border-line bg-black/25 px-4 font-bold outline-none focus:border-cyan"><option>Да</option><option>Примерно</option><option>Срыв</option></select></label><label><span className="mb-1.5 block text-xs font-bold text-muted">Комментарий</span><input value={reportDraft.comment} onChange={event => setReportDraft({ ...reportDraft, comment: event.target.value })} placeholder="Например: болело плечо" className="h-12 w-full rounded-2xl border border-line bg-black/25 px-4 font-bold outline-none focus:border-cyan"/></label></div>
+          <pre className="mt-5 max-h-64 overflow-auto whitespace-pre-wrap rounded-2xl border border-line bg-black/35 p-4 text-xs leading-relaxed text-white/75">{makeReport()}</pre><button onClick={copyReport} className="mt-5 h-14 w-full rounded-2xl bg-neon font-black text-ink">{reportCopied ? 'Скопировано!' : 'Скопировать для ИИ'} <Icon name="copy" className="ml-2"/></button>
         </Modal>
       </div>;
     }
