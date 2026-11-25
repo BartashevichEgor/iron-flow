@@ -76,7 +76,7 @@
         { id: 'tue-leg-press-cut', name: 'Жим ногами (сушка)', detail: 'Короткий отдых', sets: 3, min: 20, max: 20, load: '50 кг', startWeight: 50, rest: 45, type: 'metabolic_cut', kind: 'machine', multiplier: 1, cue: 'Таз прижат, колени по линии стоп, без блокировки коленей.' },
         { id: 'tue-leg-extension-cut', name: 'Разгибание ног сидя', detail: 'Квадрицепс', sets: 3, min: 18, max: 20, load: '25 кг', startWeight: 25, rest: 60, type: 'metabolic_cut', kind: 'machine', multiplier: 1, cue: 'Работай плавно, не бросай вес внизу.' },
         { id: 'tue-leg-curl-cut', name: 'Сгибание ног', detail: 'Задняя поверхность', sets: 3, min: 18, max: 20, load: '30 кг', startWeight: 30, rest: 60, type: 'metabolic_cut', kind: 'machine', multiplier: 1, cue: 'Таз не отрывай, контролируй возврат.' },
-        { id: 'tue-hyperextension', name: 'Гиперэкстензия', detail: 'Без веса', sets: 3, min: 12, max: 15, load: '0 кг', startWeight: 0, rest: 60, type: 'hypertrophy', kind: 'bodyweight', multiplier: 0, cue: 'Поднимайся до прямой линии, не переразгибай поясницу.' },
+        { id: 'tue-hyperextension', name: 'Гиперэкстензия', detail: 'Контроль поясницы', sets: 3, min: 12, max: 15, load: '0 кг', startWeight: 0, step: 2.5, rest: 60, type: 'hypertrophy', kind: 'free', multiplier: 1, cue: 'Поднимайся до прямой линии, не переразгибай поясницу. Блин держи у груди.' },
         { id: 'tue-core', name: 'Скручивания + Боковая планка', detail: '20 повторений / 30 сек', sets: 3, min: 20, max: 20, unit: 'повт. / 30с', load: 'кор', rest: 60, type: 'hypertrophy', kind: 'bodyweight', multiplier: 0, cue: 'Скручивай корпус, в планке держи таз на одной линии.' },
         finish('tue', [20,25], 'Ходьба в горку')
       ] },
@@ -591,18 +591,25 @@
       return <g><path d="M23 100H139M46 100L55 40H112L129 100M58 91H119" {...gear}/>{joint(end ? 94 : 70, end ? 45 : 63)}<path d={end ? 'M94 53L102 78M102 78L83 99M102 78L122 99M94 61L77 69' : 'M70 71L77 90M77 90L61 101M77 90L94 101M70 78L55 84'} {...body}/><path d="M45 101H137" stroke="#8dfc63" strokeWidth="3" strokeDasharray="6 5"/></g>;
     }
 
+    // [лист, строка] — каждая строка содержит два встроенных кадра: старт и финиш движения.
     const EXERCISE_VISUALS = {
-      'mon-bench-heavy': ['assets/technique-upper-a.png', 0], 'mon-row-low': ['assets/technique-upper-a.png', 1], 'mon-db-incline': ['assets/technique-upper-a.png', 2], 'mon-one-arm-row': ['assets/technique-upper-a.png', 3], 'mon-lateral-raise': ['assets/technique-upper-a.png', 4],
-      'tue-leg-press-cut': ['assets/technique-lower.png', 0], 'tue-leg-extension-cut': ['assets/technique-lower.png', 1], 'tue-leg-curl-cut': ['assets/technique-lower.png', 2], 'tue-hyperextension': ['assets/technique-lower.png', 3], 'tue-core': ['assets/technique-lower.png', 4],
-      'thu-bench-pause': ['assets/technique-upper-b.png', 0], 'thu-pec-deck': ['assets/technique-upper-b.png', 1], 'thu-db-shoulder': ['assets/technique-upper-b.png', 2], 'thu-lateral-drop': ['assets/technique-upper-b.png', 3], 'thu-rope-pushdown': ['assets/technique-upper-b.png', 4],
-      'fri-band-pullup': ['assets/technique-upper-c.png', 0], 'fri-lat-pulldown': ['assets/technique-upper-c.png', 1], 'fri-close-pulldown': ['assets/technique-upper-c.png', 2], 'fri-reverse-pec': ['assets/technique-upper-c.png', 3], 'fri-biceps': ['assets/technique-upper-c.png', 4], 'fri-hang': ['assets/technique-upper-c.png', 5]
+      'mon-bench-heavy': ['mon', 2], 'mon-row-low': ['tue', 1], 'mon-db-incline': ['mon', 0], 'mon-one-arm-row': ['tue', 2], 'mon-lateral-raise': ['fri', 1],
+      'tue-leg-press-cut': ['thu', 0], 'tue-leg-extension-cut': ['thu', 2], 'tue-leg-curl-cut': ['thu', 1], 'tue-hyperextension': ['tue', 4], 'tue-core': ['fri', 3],
+      'thu-bench-pause': ['mon', 2], 'thu-pec-deck': ['mon', 1], 'thu-db-shoulder': ['fri', 0], 'thu-lateral-drop': ['fri', 1], 'thu-rope-pushdown': ['mon', 3],
+      'fri-band-pullup': ['tue', 0], 'fri-lat-pulldown': ['tue', 0], 'fri-close-pulldown': ['tue', 0], 'fri-reverse-pec': ['fri', 2], 'fri-biceps': ['tue', 3], 'fri-hang': ['tue', 0]
     };
     function ExerciseDiagram({ exercise }) {
-      const [src, position] = EXERCISE_VISUALS[exercise.id] || ['assets/technique-upper-a.png', 5];
-      const column = position % 3, row = Math.floor(position / 3);
+      const [sheet, row] = EXERCISE_VISUALS[exercise.id] || ['mon', 0];
+      const src = TECHNIQUE_SHEETS[sheet];
+      const Position = ({ column, label }) => <div className="min-w-0">
+        <div className="relative overflow-hidden bg-white" style={{ aspectRatio: '3 / 2' }}>
+          <img src={src} decoding="async" alt={`${exercise.name}: ${label}`} className="absolute max-w-none" style={{ width: '200%', height: '500%', left: `-${column * 100}%`, top: `-${row * 100}%` }} />
+        </div>
+        <div className="bg-[#0b1114] px-2 py-1 text-center text-[9px] font-bold uppercase tracking-wider text-white/45">{label}</div>
+      </div>;
       return <div className="mt-4 overflow-hidden rounded-2xl border border-cyan/15 bg-white shadow-blueglow">
         <div className="border-b border-white/5 bg-[#0b1114] px-3 py-2 text-[10px] font-black uppercase tracking-[.16em] text-cyan"><Icon name="person-chalkboard" className="mr-2"/>Техника</div>
-        <div className="relative overflow-hidden bg-white" style={{ aspectRatio: '1 / 1' }}><img src={src} loading="lazy" decoding="async" alt={`${exercise.name}: техника выполнения`} className="absolute max-w-none" style={{ width: '300%', height: '200%', left: `-${column * 100}%`, top: `-${row * 100}%` }} /></div>
+        <div className="grid grid-cols-2 gap-px bg-cyan/15"><Position column={0} label="Старт"/><Position column={1} label="Финиш"/></div>
       </div>;
     }
 
@@ -618,9 +625,9 @@
       if (exercise.type === 'band_assisted') return allAtTop
         ? { reps: Array(exercise.sets).fill(exercise.min), badge: '↑ Пора на резинку тоньше', tone: 'neon' }
         : { reps: previousReps.map(rep => Math.min(exercise.max, Math.max(exercise.min, rep ? rep + 1 : exercise.min))), badge: '→ Закрепляем', tone: 'cyan' };
-      if (!previousEntry) return { weight: previousWeight || '', reps: Array(exercise.sets).fill(exercise.min), badge: '→ Старт', tone: 'cyan' };
+      if (!previousEntry) return { weight: previousWeight, reps: Array(exercise.sets).fill(exercise.min), badge: '→ Старт', tone: 'cyan' };
       if (allAtTop && Number(exercise.step || 0) > 0) return { weight: previousWeight + Number(exercise.step), reps: Array(exercise.sets).fill(exercise.min), badge: '↑ Новый вес', tone: 'neon' };
-      return { weight: previousWeight || '', reps: previousReps.map(rep => Math.min(exercise.max, Math.max(exercise.min, rep ? rep + 1 : exercise.min))), badge: '→ Закрепляем', tone: 'cyan' };
+      return { weight: previousWeight, reps: previousReps.map(rep => Math.min(exercise.max, Math.max(exercise.min, rep ? rep + 1 : exercise.min))), badge: '→ Закрепляем', tone: 'cyan' };
     }
 
     function getResultStatus(exercise, entry) {
